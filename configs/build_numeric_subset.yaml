@@ -1,0 +1,4 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+subsets_dir: data/subsets
+seed: 42
