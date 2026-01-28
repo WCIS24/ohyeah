@@ -7,7 +7,7 @@ mode: dense
 alpha: 0.5
 k_values: [1, 5, 10]
 retriever:
-  model_name: sentence-transformers/all-MiniLM-L6-v2
-  use_faiss: true
+  model_name: models/retriever_ft/20260128_175044_28a99f
+  use_faiss: false
   batch_size: 32
   device: null
