@@ -1,0 +1,7 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+results_path: null
+k_values: [1, 5, 10]
+subset_qids_path: null
+baseline_metrics_path: outputs/20260128_192907_7a5655/metrics.json
+use_collected: true

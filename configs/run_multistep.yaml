@@ -1,0 +1,20 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+corpus_path: data/corpus/chunks.jsonl
+subset_qids_path: null
+seed: 42
+
+retriever:
+  model_name: sentence-transformers/all-MiniLM-L6-v2
+  mode: dense
+  alpha: 0.5
+  top_k_each_step: 5
+  use_faiss: false
+  batch_size: 32
+  device: null
+
+max_steps: 3
+novelty_threshold: 0.3
+stop_no_new_steps: 2
+gap_enabled: true
+refiner_enabled: true
