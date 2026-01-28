@@ -88,6 +88,29 @@ python scripts\eval_retrieval.py --config configs\eval_retrieval.yaml
 python scripts\compare_retrieval_runs.py --pre-run outputs/<pre_run_id> --post-run outputs/<post_run_id> --eval-config configs/eval_retrieval.yaml
 ```
 
+## Step4 Multi-step Retrieval
+
+```powershell
+# 0) baseline (single-step) eval for comparison
+python scripts\eval_retrieval.py --config configs\eval_retrieval.yaml
+
+# 1) build dev subsets
+python scripts\build_subsets.py --config configs\build_subsets.yaml
+
+# 2) run multistep + evaluate (full dev)
+python scripts\run_multistep_retrieval.py --config configs\run_multistep.yaml
+python scripts\eval_multistep_retrieval.py --config configs\eval_multistep.yaml --results outputs/<run_id>/retrieval_results.jsonl
+
+# 3) run multistep on complex subset
+python scripts\run_multistep_retrieval.py --config configs\run_multistep.yaml --subset-qids data/subsets/dev_complex_qids.txt
+python scripts\eval_multistep_retrieval.py --config configs\eval_multistep.yaml --results outputs/<run_id>/retrieval_results.jsonl --subset-qids data/subsets/dev_complex_qids.txt
+```
+
+Outputs:
+- `multistep_traces.jsonl`: step-by-step retrieval traces for analysis/case studies.
+- `retrieval_results.jsonl`: final chunks per query.
+- `metrics.json`, `delta_vs_baseline.json`: evaluation metrics and comparison to baseline.
+
 ## FAISS note
 
 - The retriever tries to use FAISS for dense indexing when available.

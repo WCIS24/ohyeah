@@ -1,7 +1,7 @@
 PYTHON ?= python
 
 .PHONY: setup smoke test
-.PHONY: mine_negs train_retriever eval_retriever_pre eval_retriever_post
+.PHONY: mine_negs train_retriever eval_retriever_pre eval_retriever_post build_subsets run_multistep eval_multistep
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -23,3 +23,12 @@ eval_retriever_pre:
 
 eval_retriever_post:
 	$(PYTHON) scripts/eval_retrieval.py --config configs/eval_retrieval.yaml
+
+build_subsets:
+	$(PYTHON) scripts/build_subsets.py --config configs/build_subsets.yaml
+
+run_multistep:
+	$(PYTHON) scripts/run_multistep_retrieval.py --config configs/run_multistep.yaml
+
+eval_multistep:
+	$(PYTHON) scripts/eval_multistep_retrieval.py --config configs/eval_multistep.yaml
