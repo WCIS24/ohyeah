@@ -1,0 +1,15 @@
+output_dir: outputs
+seed: 42
+processed_train_path: data/processed/train.jsonl
+corpus_path: data/corpus/chunks.jsonl
+output_path: data/processed/train_triplets.jsonl
+strategy: bm25
+# candidate pool size
+top_n: 50
+hard_k: 5
+max_samples: null
+retriever:
+  model_name: sentence-transformers/all-MiniLM-L6-v2
+  use_faiss: false
+  batch_size: 32
+  device: null

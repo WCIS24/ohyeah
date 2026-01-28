@@ -5,7 +5,7 @@ import json
 import os
 import random
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List
 
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -15,10 +15,10 @@ if SRC_DIR not in sys.path:
 
 from finder_rag.config import load_config, save_config  # noqa: E402
 from finder_rag.logging_utils import setup_logging  # noqa: E402
-from finder_rag.metrics import mean, reciprocal_rank  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
-from retrieval.retriever import HybridRetriever  # noqa: E402
 import numpy as np  # noqa: E402
+from retrieval.eval_utils import compute_retrieval_metrics  # noqa: E402
+from retrieval.retriever import HybridRetriever  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,38 +43,6 @@ def load_jsonl(path: str) -> List[Dict[str, Any]]:
                 continue
             records.append(json.loads(line))
     return records
-
-
-def normalize_text(text: str) -> str:
-    return " ".join(text.lower().split())
-
-
-def match_chunk(
-    chunk: Dict[str, Any],
-    qid: str,
-    gold_evidences: List[Dict[str, Any]],
-) -> Tuple[bool, str, Optional[int]]:
-    meta = chunk.get("meta", {})
-    evidence_id = meta.get("evidence_id")
-    doc_id = meta.get("doc_id")
-    source_qid = meta.get("source_qid")
-
-    for ev in gold_evidences:
-        ev_id = ev.get("meta", {}).get("evidence_id")
-        ev_doc = ev.get("doc_id")
-        if source_qid == qid and evidence_id == ev_id:
-            if ev_doc is None or doc_id == ev_doc:
-                return True, "id", ev_id
-
-    chunk_text = normalize_text(chunk.get("text", ""))
-    gold_texts = [normalize_text(ev.get("text", "")) for ev in gold_evidences]
-    for ev_text, ev in zip(gold_texts, gold_evidences):
-        if not ev_text:
-            continue
-        if chunk_text in ev_text or ev_text in chunk_text:
-            return True, "text", ev.get("meta", {}).get("evidence_id")
-
-    return False, "none", None
 
 
 def main() -> int:
@@ -126,70 +94,16 @@ def main() -> int:
     )
     retriever.build_index(corpus_chunks)
 
-    k_values = config.get("k_values", [1, 5, 10])
-    k_values = [int(k) for k in k_values]
-    k_max = max(k_values)
+    k_values = [int(k) for k in config.get("k_values", [1, 5, 10])]
     mode = config.get("mode", "hybrid")
     alpha = float(config.get("alpha", 0.5))
-
-    per_query = []
-    recall_scores = {k: [] for k in k_values}
-    hit_scores = {k: [] for k in k_values}
-    mrr_scores = {k: [] for k in k_values}
-    fallback_queries = 0
-
-    for rec in eval_records:
-        qid = rec.get("qid")
-        gold_evidences = rec.get("evidences", [])
-        if not gold_evidences:
-            continue
-
-        results = retriever.retrieve(rec.get("query", ""), top_k=k_max, alpha=alpha, mode=mode)
-        hits = []
-        matched_ids_by_rank: List[Optional[int]] = []
-        used_fallback = False
-
-        for chunk in results:
-            hit, mode_used, ev_id = match_chunk(chunk, qid, gold_evidences)
-            hits.append(hit)
-            if hit:
-                matched_ids_by_rank.append(ev_id)
-                if mode_used == "text":
-                    used_fallback = True
-            else:
-                matched_ids_by_rank.append(None)
-
-        if used_fallback:
-            fallback_queries += 1
-
-        total_gold = len(gold_evidences)
-        for k in k_values:
-            top_hits = hits[:k]
-            matched_ids = {ev_id for ev_id in matched_ids_by_rank[:k] if ev_id is not None}
-            match_count = len(matched_ids)
-            recall_scores[k].append(match_count / total_gold)
-            hit_scores[k].append(1.0 if any(top_hits) else 0.0)
-            mrr_scores[k].append(reciprocal_rank(top_hits))
-
-        per_query.append(
-            {
-                "qid": qid,
-                "first_hit_rank": (hits.index(True) + 1) if any(hits) else None,
-                "matched_evidence_ids": sorted(list({ev_id for ev_id in matched_ids_by_rank if ev_id is not None})),
-                "used_fallback": used_fallback,
-            }
-        )
-
-    metrics = {
-        "num_queries": len(per_query),
-        "mode": mode,
-        "alpha": alpha,
-        "uncertain_match_ratio": fallback_queries / len(per_query) if per_query else 0.0,
-    }
-    for k in k_values:
-        metrics[f"recall@{k}"] = mean(recall_scores[k])
-        metrics[f"evidence_hit@{k}"] = mean(hit_scores[k])
-        metrics[f"mrr@{k}"] = mean(mrr_scores[k])
+    metrics, per_query = compute_retrieval_metrics(
+        eval_records=eval_records,
+        retriever=retriever,
+        k_values=k_values,
+        mode=mode,
+        alpha=alpha,
+    )
 
     metrics_path = os.path.join(run_dir, "metrics.json")
     with open(metrics_path, "w", encoding="utf-8") as f:
