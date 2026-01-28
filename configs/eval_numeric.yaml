@@ -1,0 +1,6 @@
+output_dir: outputs
+predictions_path: null
+processed_dev_path: data/processed/dev.jsonl
+subset_qids_path: data/subsets/dev_numeric_qids.txt
+precision: 4
+seed: 42
