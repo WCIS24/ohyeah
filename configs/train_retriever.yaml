@@ -11,10 +11,10 @@ grad_accum: 1
 warmup_ratio: 0.1
 weight_decay: 0.0
 num_epochs: 1
-max_steps: null
+max_steps: 200
 
 hard_negatives:
-  enabled: true
+  enabled: false
   hard_k: 1
   temperature: 0.05
 
@@ -24,10 +24,10 @@ bf16: false
 eval_mode: dense
 eval_alpha: 0.5
 k_values: [1, 5, 10]
-eval_every_steps: 500
-save_every_steps: 500
+eval_every_steps: 50
+save_every_steps: 50
 
-max_train_samples: 2000
+max_train_samples: 1000
 # for faster dev eval during training
 eval_max_queries: 100
 eval_max_corpus: 5000

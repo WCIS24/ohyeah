@@ -214,7 +214,12 @@ def main() -> int:
     else:
         train_loss = losses.MultipleNegativesRankingLoss(model=model)
 
-    train_dataloader = DataLoader(examples, batch_size=train_cfg.batch_size, shuffle=True)
+    train_dataloader = DataLoader(
+        examples,
+        batch_size=train_cfg.batch_size,
+        shuffle=True,
+        collate_fn=model.smart_batching_collate,
+    )
 
     eval_split_path = config.get("eval_split_path", "data/processed/dev.jsonl")
     corpus_path = config.get("corpus_path", "data/corpus/chunks.jsonl")
@@ -240,29 +245,73 @@ def main() -> int:
     checkpoints_dir = os.path.join(run_dir, "checkpoints")
     ensure_dir(checkpoints_dir)
 
-    warmup_steps = int(len(train_dataloader) * train_cfg.num_epochs * train_cfg.warmup_ratio)
+    total_steps = len(train_dataloader) * train_cfg.num_epochs
+    if train_cfg.max_steps is not None:
+        total_steps = min(total_steps, int(train_cfg.max_steps))
+
+    warmup_steps = int(total_steps * train_cfg.warmup_ratio)
     logger.info(
-        "train_cfg=%s warmup_steps=%d eval_every=%d save_every=%d",
+        "train_cfg=%s warmup_steps=%d eval_every=%d save_every=%d total_steps=%d",
         train_cfg,
         warmup_steps,
         train_cfg.eval_every_steps,
         train_cfg.save_every_steps,
+        total_steps,
     )
 
-    model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        epochs=train_cfg.num_epochs,
-        steps_per_epoch=None,
-        warmup_steps=warmup_steps,
-        evaluator=evaluator,
-        evaluation_steps=train_cfg.eval_every_steps,
-        output_path=checkpoints_dir,
-        save_best_model=True,
-        optimizer_params={"lr": train_cfg.learning_rate, "weight_decay": train_cfg.weight_decay},
-        show_progress_bar=True,
-        gradient_accumulation_steps=train_cfg.grad_accum,
-        use_amp=train_cfg.fp16,
+    import torch
+    from transformers import get_linear_schedule_with_warmup
+
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=train_cfg.learning_rate, weight_decay=train_cfg.weight_decay
     )
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
+    )
+
+    scaler = torch.cuda.amp.GradScaler(enabled=train_cfg.fp16 and torch.cuda.is_available())
+    model.train()
+
+    global_step = 0
+    best_score = -1.0
+
+    for epoch in range(train_cfg.num_epochs):
+        for batch in train_dataloader:
+            features, labels = batch
+            if train_cfg.fp16 and torch.cuda.is_available():
+                with torch.cuda.amp.autocast():
+                    loss_value = train_loss(features, labels)
+                scaler.scale(loss_value).backward()
+            else:
+                loss_value = train_loss(features, labels)
+                loss_value.backward()
+
+            if (global_step + 1) % train_cfg.grad_accum == 0:
+                if train_cfg.fp16 and torch.cuda.is_available():
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+
+            global_step += 1
+
+            if train_cfg.eval_every_steps and global_step % train_cfg.eval_every_steps == 0:
+                score = evaluator(model, epoch=epoch, steps=global_step)
+                if score > best_score:
+                    best_score = score
+                    best_path = os.path.join(checkpoints_dir, "best_model")
+                    model.save(best_path)
+
+            if train_cfg.save_every_steps and global_step % train_cfg.save_every_steps == 0:
+                checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step}")
+                model.save(checkpoint_path)
+
+            if train_cfg.max_steps is not None and global_step >= int(train_cfg.max_steps):
+                break
+        if train_cfg.max_steps is not None and global_step >= int(train_cfg.max_steps):
+            break
 
     model_dir = os.path.join("models", "retriever_ft", run_id)
     ensure_dir(model_dir)
@@ -275,6 +324,20 @@ def main() -> int:
 
     config_out = os.path.join(run_dir, "train_config.yaml")
     save_config(config, config_out)
+
+    metrics = {
+        "best_recall@5": best_score,
+        "total_steps": global_step,
+        "num_epochs": train_cfg.num_epochs,
+        "max_steps": train_cfg.max_steps,
+        "hard_negatives_enabled": train_cfg.hard_enabled,
+        "hard_k": train_cfg.hard_k,
+        "missing_hard_neg_ratio": missing_ratio,
+        "eval_every_steps": train_cfg.eval_every_steps,
+    }
+    metrics_path = os.path.join(run_dir, "metrics.json")
+    with open(metrics_path, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
 
     logger.info("model_dir=%s", model_dir)
     logger.info("checkpoints_dir=%s", checkpoints_dir)
