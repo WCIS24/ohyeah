@@ -61,11 +61,11 @@ def parse_number(num_str: str) -> float:
     return float(num_str.replace(",", ""))
 
 
-def detect_unit(window: str) -> Tuple[Optional[str], float]:
+def detect_unit(window: str, percent_window: str) -> Tuple[Optional[str], float]:
     unit = None
     scale = 1.0
 
-    if PERCENT_RE.search(window):
+    if PERCENT_RE.search(percent_window):
         return "%", 1.0
 
     if CURRENCY_RE.search(window):
@@ -122,7 +122,9 @@ def extract_facts_from_text(
             year = year_candidates[0]
             inferred = True
 
-        unit, scale = detect_unit(window)
+        unit_window = text[max(match.start() - 10, 0) : min(match.end() + 15, len(text))]
+        percent_window = text[max(match.start() - 2, 0) : min(match.end() + 10, len(text))]
+        unit, scale = detect_unit(unit_window, percent_window)
         metric = detect_metric(window)
         value_scaled = value * scale
 

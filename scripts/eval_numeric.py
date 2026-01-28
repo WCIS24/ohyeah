@@ -41,7 +41,7 @@ def apply_overrides(config: Dict[str, Any], args: argparse.Namespace) -> Dict[st
 
 
 def load_subset(path: Optional[str]) -> Optional[set[str]]:
-    if not path:
+    if not path or str(path).lower() in {"none", "null"}:
         return None
     qids = set()
     with open(path, "r", encoding="utf-8") as f:
