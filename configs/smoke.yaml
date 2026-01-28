@@ -1,0 +1,15 @@
+run_id: null
+seed: 42
+subset_size: 20
+k: 5
+max_evidence_per_query: 3
+output_dir: outputs
+
+# dataset
+finder_csv: dataset/finder_dataset.csv
+
+# retrieval
+retriever:
+  type: tfidf
+  max_features: 20000
+  ngram_range: [1, 2]
