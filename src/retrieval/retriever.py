@@ -40,7 +40,7 @@ def try_import_faiss() -> Optional[object]:
 class HybridRetriever:
     def __init__(
         self,
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        model_name: object = "sentence-transformers/all-MiniLM-L6-v2",
         use_faiss: bool = True,
         device: Optional[str] = None,
         batch_size: int = 32,
@@ -64,7 +64,10 @@ class HybridRetriever:
         tokenized = [tokenize(t) for t in self.texts]
         self.bm25 = BM25Okapi(tokenized)
 
-        self.model = SentenceTransformer(self.model_name, device=self.device)
+        if isinstance(self.model_name, SentenceTransformer):
+            self.model = self.model_name
+        else:
+            self.model = SentenceTransformer(self.model_name, device=self.device)
         embeddings = self.model.encode(
             self.texts,
             convert_to_numpy=True,

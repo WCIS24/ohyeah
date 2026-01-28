@@ -1,0 +1,33 @@
+output_dir: outputs
+seed: 42
+base_model_name: sentence-transformers/all-MiniLM-L6-v2
+train_triplets_path: data/processed/train_triplets.jsonl
+eval_split_path: data/processed/dev.jsonl
+corpus_path: data/corpus/chunks.jsonl
+
+learning_rate: 2.0e-5
+batch_size: 16
+grad_accum: 1
+warmup_ratio: 0.1
+weight_decay: 0.0
+num_epochs: 1
+max_steps: null
+
+hard_negatives:
+  enabled: true
+  hard_k: 1
+  temperature: 0.05
+
+fp16: false
+bf16: false
+
+eval_mode: dense
+eval_alpha: 0.5
+k_values: [1, 5, 10]
+eval_every_steps: 500
+save_every_steps: 500
+
+max_train_samples: 2000
+# for faster dev eval during training
+eval_max_queries: 100
+eval_max_corpus: 5000
