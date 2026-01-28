@@ -55,6 +55,52 @@ def placeholder_generate(evidence: str) -> str:
     return f"Answer based on evidence: {snippet[:200]}"
 
 
+def ensure_finder_csv(config: Dict[str, Any], logger) -> str:
+    finder_csv = config.get("finder_csv")
+    if finder_csv and os.path.exists(finder_csv):
+        return finder_csv
+
+    cache_dir = config.get("cache_dir", "data")
+    ensure_dir(cache_dir)
+    cache_csv = os.path.join(cache_dir, "finder_subset.csv")
+    if os.path.exists(cache_csv):
+        logger.info("using cached subset: %s", cache_csv)
+        config["finder_csv"] = cache_csv
+        return cache_csv
+
+    try:
+        from datasets import load_dataset  # type: ignore
+        from huggingface_hub import hf_hub_download  # type: ignore
+    except Exception as exc:
+        raise RuntimeError("datasets/huggingface_hub not available for auto-download") from exc
+
+    repo_id = config.get("hf_repo_id", "Linq-AI-Research/FinDER")
+    filename = config.get("hf_filename", "data/train-00000-of-00001.parquet")
+    parquet_path = hf_hub_download(repo_id=repo_id, repo_type="dataset", filename=filename)
+    dataset = load_dataset("parquet", data_files={"train": parquet_path})
+    ds = dataset["train"]
+
+    subset_size = int(config.get("subset_size", 20))
+    seed = int(config.get("seed", 42))
+    ds = ds.shuffle(seed=seed)
+    if subset_size > 0 and subset_size < len(ds):
+        ds = ds.select(range(subset_size))
+
+    df = ds.to_pandas()
+    df.to_csv(cache_csv, index=False)
+    config["finder_csv"] = cache_csv
+    config["auto_download"] = {
+        "repo_id": repo_id,
+        "filename": filename,
+        "subset_size": len(df),
+        "cache_csv": cache_csv,
+        "columns": list(df.columns),
+    }
+    logger.info("downloaded subset from HF: %s (%s)", repo_id, filename)
+    logger.info("cached subset: %s rows=%d", cache_csv, len(df))
+    return cache_csv
+
+
 def main() -> int:
     args = parse_args()
     config = load_config(args.config)
@@ -81,9 +127,10 @@ def main() -> int:
     config["git_hash"] = git_hash
     logger.info("seed=%d git_hash=%s", seed, git_hash)
 
-    finder_csv = config.get("finder_csv")
-    if not finder_csv or not os.path.exists(finder_csv):
-        logger.error("finder_csv not found: %s", finder_csv)
+    try:
+        finder_csv = ensure_finder_csv(config, logger)
+    except Exception as exc:
+        logger.error("failed to prepare finder_csv: %s", exc)
         return 2
 
     df = load_finder_csv(finder_csv)
@@ -125,9 +172,13 @@ def main() -> int:
         pred = placeholder_generate(retrieved[0]) if retrieved else ""
         em_scores.append(exact_match(pred, rec["answer"]))
 
+    recall_value = mean(recall_scores)
+    em_value = mean(em_scores)
     metrics = {
-        "recall_at_k": mean(recall_scores),
-        "exact_match": mean(em_scores),
+        "recall@5": recall_value if k == 5 else recall_value,
+        "em": em_value,
+        "recall_at_k": recall_value,
+        "exact_match": em_value,
         "num_queries": len(records),
         "k": k,
         "seed": seed,

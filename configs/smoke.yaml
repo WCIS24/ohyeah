@@ -4,9 +4,12 @@ subset_size: 20
 k: 5
 max_evidence_per_query: 3
 output_dir: outputs
+cache_dir: data
 
 # dataset
 finder_csv: dataset/finder_dataset.csv
+hf_repo_id: Linq-AI-Research/FinDER
+hf_filename: data/train-00000-of-00001.parquet
 
 # retrieval
 retriever:

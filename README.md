@@ -28,6 +28,14 @@ Outputs are written to `outputs/<run_id>/`:
 - `metrics.json`
 - `logs.txt`
 
+If `dataset/finder_dataset.csv` is missing, the smoke script auto-downloads a tiny subset
+from `Linq-AI-Research/FinDER` (HF) and caches it under `data/finder_subset.csv`.
+
+Metrics field mapping:
+- `recall@5`: Recall@5 for retrieval (smoke k defaults to 5).
+- `em`: exact match for placeholder QA.
+- For compatibility, `recall_at_k` and `exact_match` are also included.
+
 ## Full pipeline (baseline)
 
 1) Prepare data (schema inspection + normalization + splits):
