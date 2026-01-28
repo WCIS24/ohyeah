@@ -1,0 +1,16 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+subsets_dir: data/subsets
+seed: 42
+complex_keywords:
+  - compare
+  - versus
+  - vs
+  - increase
+  - decrease
+  - growth
+  - yoy
+  - change
+  - difference
+  - higher
+  - lower
