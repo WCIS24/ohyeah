@@ -68,6 +68,26 @@ python scripts\run_baseline.py --config configs\run_baseline.yaml
 python scripts\eval_qa.py --config configs\eval_qa.yaml --predictions outputs/<run_id>/predictions.jsonl --gold data/processed/dev.jsonl
 ```
 
+## Step3 Retriever Fine-tune
+
+```powershell
+# 0) (once) prepare data + corpus
+python scripts\prepare_data.py --config configs\prepare_data.yaml
+python scripts\build_corpus.py --config configs\build_corpus.yaml
+
+# 1) mine hard negatives
+python scripts\mine_hard_negatives.py --config configs\mine_hard_negatives.yaml
+
+# 2) train retriever
+python scripts\train_retriever.py --config configs\train_retriever.yaml
+
+# 3) pre/post evaluation
+python scripts\eval_retrieval.py --config configs\eval_retrieval.yaml
+
+# 4) compare runs (fill in pre/post run_id)
+python scripts\compare_retrieval_runs.py --pre-run outputs/<pre_run_id> --post-run outputs/<post_run_id> --eval-config configs/eval_retrieval.yaml
+```
+
 ## FAISS note
 
 - The retriever tries to use FAISS for dense indexing when available.
