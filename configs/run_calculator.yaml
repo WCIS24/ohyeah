@@ -1,0 +1,6 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+facts_path: null
+subset_qids_path: null
+output_percent: true
+seed: 42
