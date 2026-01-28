@@ -176,6 +176,10 @@ def main() -> int:
     with open(stats_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2)
 
+    metrics_path = os.path.join(run_dir, "metrics.json")
+    with open(metrics_path, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
+
     config_out = os.path.join(run_dir, "config.yaml")
     save_config(config, config_out)
 

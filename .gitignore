@@ -9,6 +9,7 @@ __pycache__/
 /data/
 /outputs/
 /dataset/
+/models/
 
 # OS
 .DS_Store
