@@ -111,6 +111,28 @@ Outputs:
 - `retrieval_results.jsonl`: final chunks per query.
 - `metrics.json`, `delta_vs_baseline.json`: evaluation metrics and comparison to baseline.
 
+## Step5 Calculator (numeric QA)
+
+```powershell
+# 0) build numeric subset
+python scripts\build_numeric_subset.py --config configs\build_numeric_subset.yaml
+
+# 1) baseline (single-step) + calculator
+python scripts\run_with_calculator.py --config configs\run_with_calculator.yaml
+python scripts\eval_numeric.py --config configs\eval_numeric.yaml --predictions outputs/<run_id>/predictions_calc.jsonl
+
+# 2) multistep + calculator (reuse Step4 retrieval results)
+python scripts\run_with_calculator.py --config configs\run_with_calculator.yaml --use-multistep 1 --multistep-results outputs/<multistep_run_id>/retrieval_results.jsonl
+python scripts\eval_numeric.py --config configs\eval_numeric.yaml --predictions outputs/<run_id>/predictions_calc.jsonl
+```
+
+Outputs:
+- `facts.jsonl`: extracted numeric facts from evidence.
+- `results_R.jsonl`: calculator results per query.
+- `calc_traces.jsonl`: calculation traces and rejection reasons.
+- `predictions_calc.jsonl`: final answers with fallback info.
+- `numeric_metrics.json`: Numeric-EM / error metrics.
+
 ## FAISS note
 
 - The retriever tries to use FAISS for dense indexing when available.

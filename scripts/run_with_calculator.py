@@ -136,7 +136,13 @@ def main() -> int:
     alpha = float(config.get("retriever", {}).get("alpha", 0.5))
     mode = config.get("retriever", {}).get("mode", "dense")
     logger.info("use_multistep=%s multistep_results_path=%s", use_multistep, multistep_path)
-    logger.info("retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s", mode, top_k, alpha, output_percent)
+    logger.info(
+        "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s",
+        mode,
+        top_k,
+        alpha,
+        output_percent,
+    )
 
     extract_total = 0
     inferred_year = 0

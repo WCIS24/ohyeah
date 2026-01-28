@@ -26,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="Path to YAML config")
     parser.add_argument("--predictions", default=None, help="Override predictions path")
     parser.add_argument("--subset-qids", default=None, help="Optional subset qid list")
+    parser.add_argument("--baseline-metrics", default=None, help="Optional baseline metrics path")
     return parser.parse_args()
 
 
@@ -34,6 +35,8 @@ def apply_overrides(config: Dict[str, Any], args: argparse.Namespace) -> Dict[st
         config["predictions_path"] = args.predictions
     if args.subset_qids is not None:
         config["subset_qids_path"] = args.subset_qids
+    if args.baseline_metrics is not None:
+        config["baseline_metrics_path"] = args.baseline_metrics
     return config
 
 
@@ -87,7 +90,11 @@ def main() -> int:
     if not predictions_path or not os.path.exists(predictions_path):
         logger.error("missing predictions_path: %s", predictions_path)
         return 2
-    logger.info("predictions_path=%s subset_qids_path=%s", predictions_path, config.get("subset_qids_path"))
+    logger.info(
+        "predictions_path=%s subset_qids_path=%s",
+        predictions_path,
+        config.get("subset_qids_path"),
+    )
 
     dev_path = config.get("processed_dev_path", "data/processed/dev.jsonl")
     records = load_jsonl(dev_path)
@@ -179,6 +186,26 @@ def main() -> int:
     metrics_path = os.path.join(run_dir, "numeric_metrics.json")
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
+
+    baseline_path = config.get("baseline_metrics_path")
+    if baseline_path and os.path.exists(baseline_path):
+        with open(baseline_path, "r", encoding="utf-8") as f:
+            baseline = json.load(f)
+        delta = {}
+        for key in [
+            "numeric_em",
+            "rel_error_mean",
+            "rel_error_median",
+            "abs_error_mean",
+            "abs_error_median",
+            "coverage",
+        ]:
+            if metrics.get(key) is not None and baseline.get(key) is not None:
+                delta[key] = metrics[key] - baseline[key]
+        delta_path = os.path.join(run_dir, "delta_vs_baseline.json")
+        with open(delta_path, "w", encoding="utf-8") as f:
+            json.dump({"delta": delta, "baseline": baseline, "current": metrics}, f, indent=2)
+        logger.info("delta_vs_baseline=%s", delta)
 
     config_out = os.path.join(run_dir, "config.yaml")
     save_config(config, config_out)

@@ -88,7 +88,11 @@ def pick_values_for_years(facts: List[Fact], years: List[int]) -> Optional[List[
     return values
 
 
-def compute_yoy(query: str, facts: List[Fact], output_percent: bool) -> Tuple[CalcResult, CalcTrace]:
+def compute_yoy(
+    query: str,
+    facts: List[Fact],
+    output_percent: bool,
+) -> Tuple[CalcResult, CalcTrace]:
     years = [int(m.group(0)) for m in YEAR_RE.finditer(query)]
     years = sorted(list(dict.fromkeys(years)))
     selected = None
@@ -120,10 +124,40 @@ def compute_yoy(query: str, facts: List[Fact], output_percent: bool) -> Tuple[Ca
                 confidence=0.0,
                 status="insufficient_facts",
             ),
-            CalcTrace(qid="", task_type="yoy", selected_key=None, candidates=len(facts), reason="missing_years"),
+            CalcTrace(
+                qid="",
+                task_type="yoy",
+                selected_key=None,
+                candidates=len(facts),
+                reason="missing_years",
+            ),
         )
 
-    x_t, x_prev = selected[0], selected[1]
+    selected_by_year = {f.year: f for f in selected if f.year is not None}
+    if len(selected_by_year) < 2:
+        return (
+            CalcResult(
+                qid="",
+                task_type="yoy",
+                inputs=[],
+                result_value=None,
+                result_unit="%" if output_percent else "ratio",
+                explanation="insufficient facts",
+                confidence=0.0,
+                status="insufficient_facts",
+            ),
+            CalcTrace(
+                qid="",
+                task_type="yoy",
+                selected_key=None,
+                candidates=len(facts),
+                reason="missing_years",
+            ),
+        )
+
+    years_sorted = sorted(selected_by_year.keys())
+    x_prev = selected_by_year[years_sorted[0]]
+    x_t = selected_by_year[years_sorted[1]]
     if x_prev.value == 0:
         return (
             CalcResult(
@@ -136,7 +170,13 @@ def compute_yoy(query: str, facts: List[Fact], output_percent: bool) -> Tuple[Ca
                 confidence=0.0,
                 status="invalid",
             ),
-            CalcTrace(qid="", task_type="yoy", selected_key=None, candidates=len(facts), reason="zero_base"),
+            CalcTrace(
+                qid="",
+                task_type="yoy",
+                selected_key=None,
+                candidates=len(facts),
+                reason="zero_base",
+            ),
         )
 
     yoy = (x_t.value - x_prev.value) / x_prev.value
@@ -146,7 +186,12 @@ def compute_yoy(query: str, facts: List[Fact], output_percent: bool) -> Tuple[Ca
     explanation = f"YoY = ({x_t.value} - {x_prev.value}) / {x_prev.value}"
     inputs = [
         {"year": x_t.year, "value": x_t.value, "unit": x_t.unit, "chunk_id": x_t.chunk_id},
-        {"year": x_prev.year, "value": x_prev.value, "unit": x_prev.unit, "chunk_id": x_prev.chunk_id},
+        {
+            "year": x_prev.year,
+            "value": x_prev.value,
+            "unit": x_prev.unit,
+            "chunk_id": x_prev.chunk_id,
+        },
     ]
     return (
         CalcResult(
@@ -176,7 +221,13 @@ def compute_diff(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="insufficient_facts",
             ),
-            CalcTrace(qid="", task_type="diff", selected_key=None, candidates=len(facts), reason="too_few"),
+            CalcTrace(
+                qid="",
+                task_type="diff",
+                selected_key=None,
+                candidates=len(facts),
+                reason="too_few",
+            ),
         )
 
     facts_sorted = sorted(facts, key=lambda x: x.confidence, reverse=True)[:2]
@@ -194,7 +245,13 @@ def compute_diff(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="unit_mismatch",
             ),
-            CalcTrace(qid="", task_type="diff", selected_key=None, candidates=len(facts), reason="unit_mismatch"),
+            CalcTrace(
+                qid="",
+                task_type="diff",
+                selected_key=None,
+                candidates=len(facts),
+                reason="unit_mismatch",
+            ),
         )
 
     result_value = a.value - b.value
@@ -232,7 +289,13 @@ def compute_share(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="insufficient_facts",
             ),
-            CalcTrace(qid="", task_type="share", selected_key=None, candidates=len(facts), reason="too_few"),
+            CalcTrace(
+                qid="",
+                task_type="share",
+                selected_key=None,
+                candidates=len(facts),
+                reason="too_few",
+            ),
         )
 
     facts_sorted = sorted(facts, key=lambda x: x.value, reverse=True)
@@ -249,7 +312,13 @@ def compute_share(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="unit_mismatch",
             ),
-            CalcTrace(qid="", task_type="share", selected_key=None, candidates=len(facts), reason="unit_mismatch"),
+            CalcTrace(
+                qid="",
+                task_type="share",
+                selected_key=None,
+                candidates=len(facts),
+                reason="unit_mismatch",
+            ),
         )
 
     share = part.value / total.value if total.value else None
@@ -265,7 +334,13 @@ def compute_share(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="invalid",
             ),
-            CalcTrace(qid="", task_type="share", selected_key=None, candidates=len(facts), reason="zero_base"),
+            CalcTrace(
+                qid="",
+                task_type="share",
+                selected_key=None,
+                candidates=len(facts),
+                reason="zero_base",
+            ),
         )
 
     result_value = share * 100
@@ -303,7 +378,13 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="insufficient_facts",
             ),
-            CalcTrace(qid="", task_type="multiple", selected_key=None, candidates=len(facts), reason="too_few"),
+            CalcTrace(
+                qid="",
+                task_type="multiple",
+                selected_key=None,
+                candidates=len(facts),
+                reason="too_few",
+            ),
         )
 
     facts_sorted = sorted(facts, key=lambda x: x.confidence, reverse=True)[:2]
@@ -320,7 +401,13 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="unit_mismatch",
             ),
-            CalcTrace(qid="", task_type="multiple", selected_key=None, candidates=len(facts), reason="unit_mismatch"),
+            CalcTrace(
+                qid="",
+                task_type="multiple",
+                selected_key=None,
+                candidates=len(facts),
+                reason="unit_mismatch",
+            ),
         )
 
     if b.value == 0:
@@ -335,7 +422,13 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
                 confidence=0.0,
                 status="invalid",
             ),
-            CalcTrace(qid="", task_type="multiple", selected_key=None, candidates=len(facts), reason="zero_base"),
+            CalcTrace(
+                qid="",
+                task_type="multiple",
+                selected_key=None,
+                candidates=len(facts),
+                reason="zero_base",
+            ),
         )
 
     result_value = a.value / b.value
@@ -356,11 +449,21 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
             confidence=min(a.confidence, b.confidence),
             status="ok",
         ),
-        CalcTrace(qid="", task_type="multiple", selected_key=None, candidates=len(facts), reason="ok"),
+        CalcTrace(
+            qid="",
+            task_type="multiple",
+            selected_key=None,
+            candidates=len(facts),
+            reason="ok",
+        ),
     )
 
 
-def compute_for_query(query: str, facts: List[Fact], output_percent: bool = True) -> Tuple[CalcResult, CalcTrace]:
+def compute_for_query(
+    query: str,
+    facts: List[Fact],
+    output_percent: bool = True,
+) -> Tuple[CalcResult, CalcTrace]:
     task = detect_task(query)
     if not task:
         return (
@@ -374,7 +477,13 @@ def compute_for_query(query: str, facts: List[Fact], output_percent: bool = True
                 confidence=0.0,
                 status="no_match",
             ),
-            CalcTrace(qid="", task_type="unknown", selected_key=None, candidates=len(facts), reason="no_task"),
+            CalcTrace(
+                qid="",
+                task_type="unknown",
+                selected_key=None,
+                candidates=len(facts),
+                reason="no_task",
+            ),
         )
 
     groups = group_facts(facts)
@@ -408,7 +517,13 @@ def compute_for_query(query: str, facts: List[Fact], output_percent: bool = True
                 confidence=0.0,
                 status="ambiguous",
             )
-            trace = CalcTrace(qid="", task_type=task, selected_key=key, candidates=len(group), reason="ambiguous")
+            trace = CalcTrace(
+                qid="",
+                task_type=task,
+                selected_key=key,
+                candidates=len(group),
+                reason="ambiguous",
+            )
             return result, trace
 
     if task == "yoy":
@@ -430,7 +545,13 @@ def compute_for_query(query: str, facts: List[Fact], output_percent: bool = True
             confidence=0.0,
             status="no_match",
         )
-        trace = CalcTrace(qid="", task_type=task, selected_key=None, candidates=len(facts), reason="unsupported")
+        trace = CalcTrace(
+            qid="",
+            task_type=task,
+            selected_key=None,
+            candidates=len(facts),
+            reason="unsupported",
+        )
 
     result.qid = ""
     trace.qid = ""
