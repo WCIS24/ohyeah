@@ -1,0 +1,6 @@
+output_dir: outputs
+processed_dir: data/processed
+corpus_file: data/corpus/chunks.jsonl
+splits: [train, dev, test]
+chunk_size: 1000
+overlap: 100

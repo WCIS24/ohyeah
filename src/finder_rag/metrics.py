@@ -27,3 +27,14 @@ def mean(values: List[float]) -> float:
     if not values:
         return 0.0
     return sum(values) / float(len(values))
+
+
+def reciprocal_rank(hits: Iterable[bool]) -> float:
+    for idx, hit in enumerate(hits, start=1):
+        if hit:
+            return 1.0 / idx
+    return 0.0
+
+
+def mrr(scores: List[Iterable[bool]]) -> float:
+    return mean([reciprocal_rank(h) for h in scores])

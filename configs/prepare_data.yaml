@@ -1,0 +1,20 @@
+output_dir: outputs
+processed_dir: data/processed
+seed: 42
+train_ratio: 0.8
+dev_ratio: 0.1
+test_ratio: 0.1
+max_samples: null
+
+# dataset
+# Prefer local CSV via datasets (csv) loader; set dataset_name for HF hub.
+data_files: dataset/finder_dataset.csv
+dataset_name: null
+dataset_config: null
+
+field_map:
+  qid: _id
+  query: text
+  answer: answer
+  evidences: references
+  doc_id: null

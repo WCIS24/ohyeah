@@ -1,0 +1,4 @@
+output_dir: outputs
+predictions_file: null
+# e.g. data/processed/dev.jsonl
+gold_file: null
