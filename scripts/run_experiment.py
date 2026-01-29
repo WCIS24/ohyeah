@@ -114,9 +114,10 @@ def main() -> int:
 
     multistep_enabled = bool(get_path(resolved, "multistep.enabled", False))
     calc_enabled = bool(get_path(resolved, "calculator.enabled", False))
+    skip_retrieval = bool(get_path(resolved, "eval.skip_retrieval", False))
 
-    # Retrieval evaluation
-    if multistep_enabled:
+    # Multi-step retrieval (for eval or calculator inputs)
+    if multistep_enabled and (not skip_retrieval or calc_enabled):
         ms_run_id = f"{run_id}_ms"
         ms_cfg = stage_config(resolved, ms_run_id, {})
         ms_cfg_path = os.path.join(run_dir, "config.ms.yaml")
@@ -128,87 +129,89 @@ def main() -> int:
         if rc != 0:
             logger.error("run_multistep failed rc=%d", rc)
             return rc
-
         summary["runs"]["multistep"] = ms_run_id
 
-        eval_run_id = f"{run_id}_ms_eval_full"
-        eval_cfg = stage_config(
-            resolved,
-            eval_run_id,
-            {"results_path": f"outputs/{ms_run_id}/retrieval_results.jsonl"},
-        )
-        eval_cfg_path = os.path.join(run_dir, "config.ms_eval_full.yaml")
-        save_config(eval_cfg, eval_cfg_path)
-        rc = run_script(
-            [sys.executable, "scripts/eval_multistep_retrieval.py", "--config", eval_cfg_path],
-            log_path,
-        )
-        if rc != 0:
-            logger.error("eval_multistep full failed rc=%d", rc)
-            return rc
-        summary["runs"]["retrieval_full"] = eval_run_id
+    # Retrieval evaluation (optional)
+    if not skip_retrieval:
+        if multistep_enabled:
+            eval_run_id = f"{run_id}_ms_eval_full"
+            eval_cfg = stage_config(
+                resolved,
+                eval_run_id,
+                {"results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl"},
+            )
+            eval_cfg_path = os.path.join(run_dir, "config.ms_eval_full.yaml")
+            save_config(eval_cfg, eval_cfg_path)
+            rc = run_script(
+                [sys.executable, "scripts/eval_multistep_retrieval.py", "--config", eval_cfg_path],
+                log_path,
+            )
+            if rc != 0:
+                logger.error("eval_multistep full failed rc=%d", rc)
+                return rc
+            summary["runs"]["retrieval_full"] = eval_run_id
 
-        complex_path = get_path(resolved, "eval.subsets.complex_path")
-        eval_c_run_id = f"{run_id}_ms_eval_complex"
-        eval_c_cfg = stage_config(
-            resolved,
-            eval_c_run_id,
-            {
-                "results_path": f"outputs/{ms_run_id}/retrieval_results.jsonl",
-                "subset_qids_path": complex_path,
-            },
-        )
-        eval_c_cfg_path = os.path.join(run_dir, "config.ms_eval_complex.yaml")
-        save_config(eval_c_cfg, eval_c_cfg_path)
-        rc = run_script(
-            [
-                sys.executable,
-                "scripts/eval_multistep_retrieval.py",
-                "--config",
-                eval_c_cfg_path,
-                "--subset-qids",
-                complex_path,
-            ],
-            log_path,
-        )
-        if rc != 0:
-            logger.error("eval_multistep complex failed rc=%d", rc)
-            return rc
-        summary["runs"]["retrieval_complex"] = eval_c_run_id
-    else:
-        eval_run_id = f"{run_id}_retrieval_full"
-        eval_cfg = stage_config(resolved, eval_run_id, {})
-        eval_cfg_path = os.path.join(run_dir, "config.retrieval_full.yaml")
-        save_config(eval_cfg, eval_cfg_path)
-        rc = run_script(
-            [sys.executable, "scripts/eval_retrieval.py", "--config", eval_cfg_path],
-            log_path,
-        )
-        if rc != 0:
-            logger.error("eval_retrieval full failed rc=%d", rc)
-            return rc
-        summary["runs"]["retrieval_full"] = eval_run_id
+            complex_path = get_path(resolved, "eval.subsets.complex_path")
+            eval_c_run_id = f"{run_id}_ms_eval_complex"
+            eval_c_cfg = stage_config(
+                resolved,
+                eval_c_run_id,
+                {
+                    "results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl",
+                    "subset_qids_path": complex_path,
+                },
+            )
+            eval_c_cfg_path = os.path.join(run_dir, "config.ms_eval_complex.yaml")
+            save_config(eval_c_cfg, eval_c_cfg_path)
+            rc = run_script(
+                [
+                    sys.executable,
+                    "scripts/eval_multistep_retrieval.py",
+                    "--config",
+                    eval_c_cfg_path,
+                    "--subset-qids",
+                    complex_path,
+                ],
+                log_path,
+            )
+            if rc != 0:
+                logger.error("eval_multistep complex failed rc=%d", rc)
+                return rc
+            summary["runs"]["retrieval_complex"] = eval_c_run_id
+        else:
+            eval_run_id = f"{run_id}_retrieval_full"
+            eval_cfg = stage_config(resolved, eval_run_id, {})
+            eval_cfg_path = os.path.join(run_dir, "config.retrieval_full.yaml")
+            save_config(eval_cfg, eval_cfg_path)
+            rc = run_script(
+                [sys.executable, "scripts/eval_retrieval.py", "--config", eval_cfg_path],
+                log_path,
+            )
+            if rc != 0:
+                logger.error("eval_retrieval full failed rc=%d", rc)
+                return rc
+            summary["runs"]["retrieval_full"] = eval_run_id
 
-        complex_path = get_path(resolved, "eval.subsets.complex_path")
-        eval_c_run_id = f"{run_id}_retrieval_complex"
-        eval_c_cfg = stage_config(resolved, eval_c_run_id, {})
-        eval_c_cfg_path = os.path.join(run_dir, "config.retrieval_complex.yaml")
-        save_config(eval_c_cfg, eval_c_cfg_path)
-        rc = run_script(
-            [
-                sys.executable,
-                "scripts/eval_retrieval.py",
-                "--config",
-                eval_c_cfg_path,
-                "--subset-qids",
-                complex_path,
-            ],
-            log_path,
-        )
-        if rc != 0:
-            logger.error("eval_retrieval complex failed rc=%d", rc)
-            return rc
-        summary["runs"]["retrieval_complex"] = eval_c_run_id
+            complex_path = get_path(resolved, "eval.subsets.complex_path")
+            eval_c_run_id = f"{run_id}_retrieval_complex"
+            eval_c_cfg = stage_config(resolved, eval_c_run_id, {})
+            eval_c_cfg_path = os.path.join(run_dir, "config.retrieval_complex.yaml")
+            save_config(eval_c_cfg, eval_c_cfg_path)
+            rc = run_script(
+                [
+                    sys.executable,
+                    "scripts/eval_retrieval.py",
+                    "--config",
+                    eval_c_cfg_path,
+                    "--subset-qids",
+                    complex_path,
+                ],
+                log_path,
+            )
+            if rc != 0:
+                logger.error("eval_retrieval complex failed rc=%d", rc)
+                return rc
+            summary["runs"]["retrieval_complex"] = eval_c_run_id
 
     # Calculator pipeline
     if calc_enabled:

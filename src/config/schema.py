@@ -60,6 +60,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "eval": {
         "k_list": [1, 5, 10],
+        "skip_retrieval": False,
         "subsets": {
             "complex_path": "data/subsets/dev_complex_qids.txt",
             "numeric_path": "data/subsets/dev_numeric_qids.txt",
@@ -117,6 +118,7 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "calculator.parsing.unit_map": (dict,),
     "calculator.parsing.output_percent": (bool,),
     "eval.k_list": (list,),
+    "eval.skip_retrieval": (bool,),
     "eval.subsets.complex_path": (str,),
     "eval.subsets.numeric_path": (str,),
     "eval.numeric.tolerance": (int,),
