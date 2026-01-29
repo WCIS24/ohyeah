@@ -21,6 +21,7 @@ from finder_rag.config import load_config, save_config  # noqa: E402
 from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
 from training.pairs import load_jsonl  # noqa: E402
+from config.schema import get_path, resolve_config, validate_config, validate_paths, write_resolved_config  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,12 +58,12 @@ def fact_from_dict(data: Dict[str, Any]) -> Fact:
 
 def main() -> int:
     args = parse_args()
-    config = load_config(args.config)
-    config = apply_overrides(config, args)
+    raw_config = load_config(args.config)
+    raw_config = apply_overrides(raw_config, args)
 
-    run_id = config.get("run_id") or generate_run_id()
-    config["run_id"] = run_id
-    output_dir = config.get("output_dir", "outputs")
+    run_id = raw_config.get("run_id") or generate_run_id()
+    raw_config["run_id"] = run_id
+    output_dir = raw_config.get("output_dir", "outputs")
     run_dir = os.path.join(output_dir, run_id)
     ensure_dir(run_dir)
 
@@ -72,23 +73,32 @@ def main() -> int:
     logger.info("config_path=%s", args.config)
 
     git_hash = get_git_hash()
-    config["git_hash"] = git_hash
+    raw_config["git_hash"] = git_hash
     logger.info("git_hash=%s", git_hash)
 
-    seed = int(config.get("seed", 42))
+    resolved = resolve_config(raw_config)
+    resolved_path = write_resolved_config(resolved, run_dir)
+    issues = validate_config(resolved) + validate_paths(resolved)
+    logger.info("resolved_config_path=%s", resolved_path)
+    if issues:
+        logger.info("config_issues=%s", issues)
+
+    seed = int(get_path(resolved, "runtime.seed", 42))
     random.seed(seed)
     np.random.seed(seed)
     logger.info("seed=%d", seed)
 
-    dev_path = config.get("processed_dev_path", "data/processed/dev.jsonl")
-    facts_path = config.get("facts_path")
+    processed_dir = get_path(resolved, "data.processed_dir", "data/processed")
+    dev_file = get_path(resolved, "data.splits.dev", "dev.jsonl")
+    dev_path = os.path.join(processed_dir, dev_file)
+    facts_path = raw_config.get("facts_path")
     if not facts_path or not os.path.exists(facts_path):
         logger.error("missing facts_path: %s", facts_path)
         return 2
     logger.info("facts_path=%s subset_qids_path=%s", facts_path, config.get("subset_qids_path"))
 
     records = load_jsonl(dev_path)
-    subset_qids = load_subset(config.get("subset_qids_path"))
+    subset_qids = load_subset(raw_config.get("subset_qids_path"))
     if subset_qids:
         records = [r for r in records if r.get("qid") in subset_qids]
 
@@ -108,7 +118,7 @@ def main() -> int:
     status_counts: Counter[str] = Counter()
     task_counts: Counter[str] = Counter()
 
-    output_percent = bool(config.get("output_percent", True))
+    output_percent = bool(get_path(resolved, "calculator.parsing.output_percent", True))
 
     with open(results_path, "w", encoding="utf-8") as results_f, open(
         traces_path, "w", encoding="utf-8"
@@ -141,8 +151,11 @@ def main() -> int:
     with open(stats_path, "w", encoding="utf-8") as f:
         json.dump(calc_stats, f, indent=2)
 
+    with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
+        f.write(f"{git_hash}\n")
+
     config_out = os.path.join(run_dir, "config.yaml")
-    save_config(config, config_out)
+    save_config(resolved, config_out)
 
     logger.info("calc_stats=%s", calc_stats)
     return 0

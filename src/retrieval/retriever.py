@@ -37,6 +37,24 @@ def try_import_faiss() -> Optional[object]:
         return None
 
 
+def build_retriever_from_config(config: Dict[str, object]) -> "HybridRetriever":
+    retr_cfg = config.get("retriever", {}) if isinstance(config, dict) else {}
+    dense_cfg = retr_cfg.get("dense", {}) if isinstance(retr_cfg, dict) else {}
+    index_cfg = retr_cfg.get("index", {}) if isinstance(retr_cfg, dict) else {}
+    model_name = dense_cfg.get("model_name_or_path") or retr_cfg.get(
+        "model_name", "sentence-transformers/all-MiniLM-L6-v2"
+    )
+    use_faiss = bool(index_cfg.get("use_faiss", retr_cfg.get("use_faiss", True)))
+    device = retr_cfg.get("device")
+    batch_size = int(retr_cfg.get("batch_size", 32))
+    return HybridRetriever(
+        model_name=model_name,
+        use_faiss=use_faiss,
+        device=device,
+        batch_size=batch_size,
+    )
+
+
 class HybridRetriever:
     def __init__(
         self,
@@ -54,6 +72,7 @@ class HybridRetriever:
         self.metas: List[Dict[str, str]] = []
         self.bm25: Optional[BM25Okapi] = None
         self.model: Optional[SentenceTransformer] = None
+        self.loaded_model_name: Optional[str] = None
         self.embeddings: Optional[np.ndarray] = None
         self.faiss_index = None
 
@@ -66,8 +85,10 @@ class HybridRetriever:
 
         if isinstance(self.model_name, SentenceTransformer):
             self.model = self.model_name
+            self.loaded_model_name = getattr(self.model, "name_or_path", "provided_instance")
         else:
             self.model = SentenceTransformer(self.model_name, device=self.device)
+            self.loaded_model_name = str(self.model_name)
         embeddings = self.model.encode(
             self.texts,
             convert_to_numpy=True,
