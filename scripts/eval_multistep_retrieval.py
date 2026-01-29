@@ -16,6 +16,7 @@ from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
 from retrieval.eval_utils import match_chunk  # noqa: E402
 from training.pairs import load_jsonl  # noqa: E402
+from config.schema import get_path, resolve_config, validate_config, validate_paths, write_resolved_config  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,12 +60,12 @@ def load_subset(path: Optional[str]) -> Optional[set[str]]:
 
 def main() -> int:
     args = parse_args()
-    config = load_config(args.config)
-    config = apply_overrides(config, args)
+    raw_config = load_config(args.config)
+    raw_config = apply_overrides(raw_config, args)
 
-    run_id = config.get("run_id") or generate_run_id()
-    config["run_id"] = run_id
-    output_dir = config.get("output_dir", "outputs")
+    run_id = raw_config.get("run_id") or generate_run_id()
+    raw_config["run_id"] = run_id
+    output_dir = raw_config.get("output_dir", "outputs")
     run_dir = os.path.join(output_dir, run_id)
     ensure_dir(run_dir)
 
@@ -74,11 +75,20 @@ def main() -> int:
     logger.info("config_path=%s", args.config)
 
     git_hash = get_git_hash()
-    config["git_hash"] = git_hash
+    raw_config["git_hash"] = git_hash
     logger.info("git_hash=%s", git_hash)
 
-    dev_path = config.get("processed_dev_path", "data/processed/dev.jsonl")
-    results_path = config.get("results_path")
+    resolved = resolve_config(raw_config)
+    resolved_path = write_resolved_config(resolved, run_dir)
+    issues = validate_config(resolved) + validate_paths(resolved)
+    logger.info("resolved_config_path=%s", resolved_path)
+    if issues:
+        logger.info("config_issues=%s", issues)
+
+    processed_dir = get_path(resolved, "data.processed_dir", "data/processed")
+    dev_file = get_path(resolved, "data.splits.dev", "dev.jsonl")
+    dev_path = os.path.join(processed_dir, dev_file)
+    results_path = raw_config.get("results_path")
     if not results_path or not os.path.exists(results_path):
         logger.error("missing results_path: %s", results_path)
         return 2
@@ -86,12 +96,21 @@ def main() -> int:
     records = load_jsonl(dev_path)
     results = {r["qid"]: r for r in load_jsonl(results_path)}
 
-    subset_qids = load_subset(config.get("subset_qids_path"))
+    subset_qids = load_subset(raw_config.get("subset_qids_path"))
     if subset_qids:
         records = [r for r in records if r.get("qid") in subset_qids]
 
-    k_values = [int(k) for k in config.get("k_values", [1, 5, 10])]
-    use_collected = bool(config.get("use_collected", False))
+    k_values = [int(k) for k in get_path(resolved, "eval.k_list", [1, 5, 10])]
+    use_collected = bool(raw_config.get("use_collected", False))
+    chunk_size = int(get_path(resolved, "chunking.chunk_size", 0))
+    overlap = int(get_path(resolved, "chunking.overlap", 0))
+    logger.info(
+        "dense_model=%s alpha=%.3f chunk_size=%d overlap=%d",
+        get_path(resolved, "retriever.dense.model_name_or_path"),
+        float(get_path(resolved, "retriever.hybrid.alpha", 0.5)),
+        chunk_size,
+        overlap,
+    )
 
     recall_scores = {k: [] for k in k_values}
     hit_scores = {k: [] for k in k_values}
@@ -166,7 +185,7 @@ def main() -> int:
         for row in per_query:
             f.write(json.dumps(row) + "\n")
 
-    baseline_metrics_path = config.get("baseline_metrics_path")
+    baseline_metrics_path = raw_config.get("baseline_metrics_path")
     if baseline_metrics_path and os.path.exists(baseline_metrics_path):
         with open(baseline_metrics_path, "r", encoding="utf-8") as f:
             base = json.load(f)
@@ -178,8 +197,11 @@ def main() -> int:
         with open(delta_path, "w", encoding="utf-8") as f:
             json.dump({"delta": delta, "baseline": base, "multistep": metrics}, f, indent=2)
 
+    with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
+        f.write(f"{git_hash}\n")
+
     config_out = os.path.join(run_dir, "config.yaml")
-    save_config(config, config_out)
+    save_config(resolved, config_out)
 
     logger.info("metrics=%s", metrics)
     return 0

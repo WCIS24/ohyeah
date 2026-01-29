@@ -14,6 +14,7 @@ class GapResult:
     gap_type: str
     missing_years: List[str]
     missing_entity: Optional[str]
+    gap_conf: float
 
 
 def extract_years(text: str) -> List[str]:
@@ -55,7 +56,13 @@ def detect_gap(query: str, chunks: List[dict], query_type: str) -> GapResult:
 
     missing_years = [y for y in query_years if y not in chunk_years]
     if len(query_years) >= 2 and missing_years:
-        return GapResult(gap_type="MISSING_YEAR", missing_years=missing_years, missing_entity=None)
+        gap_conf = len(missing_years) / len(query_years) if query_years else 0.0
+        return GapResult(
+            gap_type="MISSING_YEAR",
+            missing_years=missing_years,
+            missing_entity=None,
+            gap_conf=gap_conf,
+        )
 
     if query_type == "COMPARE":
         entities = extract_entities_from_query(query)
@@ -66,6 +73,11 @@ def detect_gap(query: str, chunks: List[dict], query_type: str) -> GapResult:
                     found.append(e)
             if len(found) == 1:
                 missing_entity = entities[1] if entities[0] in found else entities[0]
-                return GapResult(gap_type="MISSING_ENTITY", missing_years=[], missing_entity=missing_entity)
+                return GapResult(
+                    gap_type="MISSING_ENTITY",
+                    missing_years=[],
+                    missing_entity=missing_entity,
+                    gap_conf=1.0,
+                )
 
-    return GapResult(gap_type="NO_GAP", missing_years=[], missing_entity=None)
+    return GapResult(gap_type="NO_GAP", missing_years=[], missing_entity=None, gap_conf=0.0)
