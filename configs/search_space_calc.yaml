@@ -1,0 +1,11 @@
+﻿parameters:
+  calculator.enabled: [true]
+  calculator.gate.min_conf: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+  calculator.gate.allow_task_types: [[yoy, diff]]
+objective:
+  metric: numeric_dev.numeric_em
+  mode: max
+constraint:
+  metric: numeric_dev.coverage
+  baseline_metrics_path: outputs/<baseline_run>/numeric_metrics.json
+  min_delta: -0.02

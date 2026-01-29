@@ -17,6 +17,13 @@ from finder_rag.config import load_config, save_config  # noqa: E402
 from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
 from training.pairs import load_jsonl  # noqa: E402
+from config.schema import (  # noqa: E402
+    get_path,
+    resolve_config,
+    validate_config,
+    validate_paths,
+    write_resolved_config,
+)
 
 NUMBER_RE = re.compile(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?")
 
@@ -52,25 +59,46 @@ def load_subset(path: Optional[str]) -> Optional[set[str]]:
     return qids
 
 
-def extract_numbers(text: str) -> List[float]:
+def extract_numbers(text: str) -> List[Dict[str, object]]:
     nums = []
     for match in NUMBER_RE.finditer(text or ""):
         num_str = match.group(0).replace(",", "")
         try:
-            nums.append(float(num_str))
+            val = float(num_str)
         except ValueError:
             continue
+        window = (text or "")[match.end() : match.end() + 5]
+        is_percent = "%" in window or "percent" in window.lower()
+        nums.append({"value": val, "is_percent": is_percent})
     return nums
+
+
+def normalize_percent_mode(
+    gold: Dict[str, object],
+    pred: Dict[str, object],
+    mode: str,
+) -> float:
+    gold_val = float(gold["value"])
+    pred_val = float(pred["value"])
+    gold_pct = bool(gold.get("is_percent"))
+    pred_pct = bool(pred.get("is_percent"))
+    if mode != "auto":
+        return pred_val
+    if gold_pct == pred_pct:
+        return pred_val
+    candidates = [pred_val, pred_val * 100.0, pred_val / 100.0]
+    best = min(candidates, key=lambda v: abs(v - gold_val))
+    return best
 
 
 def main() -> int:
     args = parse_args()
-    config = load_config(args.config)
-    config = apply_overrides(config, args)
+    raw_config = load_config(args.config)
+    raw_config = apply_overrides(raw_config, args)
 
-    run_id = config.get("run_id") or generate_run_id()
-    config["run_id"] = run_id
-    output_dir = config.get("output_dir", "outputs")
+    run_id = raw_config.get("run_id") or generate_run_id()
+    raw_config["run_id"] = run_id
+    output_dir = raw_config.get("output_dir", "outputs")
     run_dir = os.path.join(output_dir, run_id)
     ensure_dir(run_dir)
 
@@ -80,13 +108,27 @@ def main() -> int:
     logger.info("config_path=%s", args.config)
 
     git_hash = get_git_hash()
-    config["git_hash"] = git_hash
+    raw_config["git_hash"] = git_hash
     logger.info("git_hash=%s", git_hash)
 
-    seed = int(config.get("seed", 42))
-    logger.info("seed=%d", seed)
+    resolved = resolve_config(raw_config)
+    resolved_path = write_resolved_config(resolved, run_dir)
+    issues = validate_config(resolved) + validate_paths(resolved)
+    logger.info("resolved_config_path=%s", resolved_path)
+    if issues:
+        logger.info("config_issues=%s", issues)
 
-    predictions_path = config.get("predictions_path")
+    seed = int(get_path(resolved, "runtime.seed", 42))
+    logger.info("seed=%d", seed)
+    logger.info(
+        "dense_model=%s alpha=%.3f chunk_size=%d overlap=%d",
+        get_path(resolved, "retriever.dense.model_name_or_path"),
+        float(get_path(resolved, "retriever.hybrid.alpha", 0.5)),
+        int(get_path(resolved, "chunking.chunk_size", 0)),
+        int(get_path(resolved, "chunking.overlap", 0)),
+    )
+
+    predictions_path = raw_config.get("predictions_path")
     if not predictions_path or not os.path.exists(predictions_path):
         logger.error("missing predictions_path: %s", predictions_path)
         return 2
@@ -96,15 +138,18 @@ def main() -> int:
         config.get("subset_qids_path"),
     )
 
-    dev_path = config.get("processed_dev_path", "data/processed/dev.jsonl")
+    processed_dir = get_path(resolved, "data.processed_dir", "data/processed")
+    dev_file = get_path(resolved, "data.splits.dev", "dev.jsonl")
+    dev_path = os.path.join(processed_dir, dev_file)
     records = load_jsonl(dev_path)
     preds = {p.get("qid"): p for p in load_jsonl(predictions_path)}
 
-    subset_qids = load_subset(config.get("subset_qids_path"))
+    subset_qids = load_subset(raw_config.get("subset_qids_path"))
     if subset_qids:
         records = [r for r in records if r.get("qid") in subset_qids]
 
-    precision = int(config.get("precision", 4))
+    precision = int(get_path(resolved, "eval.numeric.tolerance", 4))
+    normalize_mode = get_path(resolved, "eval.numeric.normalize_percent_mode", "auto")
 
     per_query_path = os.path.join(run_dir, "numeric_per_query.jsonl")
     em_list: List[int] = []
@@ -143,10 +188,11 @@ def main() -> int:
             rel_err = None
             em = 0
             if gold_val is not None and pred_val is not None:
-                abs_err = abs(pred_val - gold_val)
-                denom = max(abs(gold_val), 1e-9)
+                pred_num = normalize_percent_mode(gold_val, pred_val, normalize_mode)
+                abs_err = abs(pred_num - float(gold_val["value"]))
+                denom = max(abs(float(gold_val["value"])), 1e-9)
                 rel_err = abs_err / denom
-                em = int(round(pred_val, precision) == round(gold_val, precision))
+                em = int(round(pred_num, precision) == round(float(gold_val["value"]), precision))
                 abs_errors.append(abs_err)
                 rel_errors.append(rel_err)
                 em_list.append(em)
@@ -155,8 +201,8 @@ def main() -> int:
                 json.dumps(
                     {
                         "qid": qid,
-                        "gold_num": gold_val,
-                        "pred_num": pred_val,
+                        "gold_num": gold_val["value"] if gold_val is not None else None,
+                        "pred_num": pred_val["value"] if pred_val is not None else None,
                         "abs_err": abs_err,
                         "rel_err": rel_err,
                         "numeric_em": em,
@@ -187,7 +233,7 @@ def main() -> int:
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
-    baseline_path = config.get("baseline_metrics_path")
+    baseline_path = raw_config.get("baseline_metrics_path")
     if baseline_path and os.path.exists(baseline_path):
         with open(baseline_path, "r", encoding="utf-8") as f:
             baseline = json.load(f)
@@ -207,8 +253,11 @@ def main() -> int:
             json.dump({"delta": delta, "baseline": baseline, "current": metrics}, f, indent=2)
         logger.info("delta_vs_baseline=%s", delta)
 
+    with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
+        f.write(f"{git_hash}\n")
+
     config_out = os.path.join(run_dir, "config.yaml")
-    save_config(config, config_out)
+    save_config(resolved, config_out)
 
     logger.info("metrics=%s", metrics)
     return 0

@@ -22,6 +22,13 @@ from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
 from retrieval.retriever import HybridRetriever  # noqa: E402
 from training.pairs import load_jsonl  # noqa: E402
+from config.schema import (  # noqa: E402
+    get_path,
+    resolve_config,
+    validate_config,
+    validate_paths,
+    write_resolved_config,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -65,12 +72,14 @@ def placeholder_generate(query: str, chunks: List[Dict[str, Any]]) -> str:
 def build_retriever(config: Dict[str, Any]) -> HybridRetriever:
     retriever_cfg = config.get("retriever", {})
     retriever = HybridRetriever(
-        model_name=retriever_cfg.get("model_name", "sentence-transformers/all-MiniLM-L6-v2"),
-        use_faiss=bool(retriever_cfg.get("use_faiss", False)),
+        model_name=get_path(config, "retriever.dense.model_name_or_path"),
+        use_faiss=bool(get_path(config, "retriever.index.use_faiss", False)),
         device=retriever_cfg.get("device"),
         batch_size=int(retriever_cfg.get("batch_size", 32)),
     )
-    corpus_path = config.get("corpus_path", "data/corpus/chunks.jsonl")
+    corpus_dir = get_path(config, "data.corpus_dir", "data/corpus")
+    corpus_file = get_path(config, "data.corpus_file", "chunks.jsonl")
+    corpus_path = os.path.join(corpus_dir, corpus_file)
     corpus_chunks = load_jsonl(corpus_path)
     retriever.build_index(corpus_chunks)
     return retriever
@@ -78,12 +87,12 @@ def build_retriever(config: Dict[str, Any]) -> HybridRetriever:
 
 def main() -> int:
     args = parse_args()
-    config = load_config(args.config)
-    config = apply_overrides(config, args)
+    raw_config = load_config(args.config)
+    raw_config = apply_overrides(raw_config, args)
 
-    run_id = config.get("run_id") or generate_run_id()
-    config["run_id"] = run_id
-    output_dir = config.get("output_dir", "outputs")
+    run_id = raw_config.get("run_id") or generate_run_id()
+    raw_config["run_id"] = run_id
+    output_dir = raw_config.get("output_dir", "outputs")
     run_dir = os.path.join(output_dir, run_id)
     ensure_dir(run_dir)
 
@@ -93,27 +102,37 @@ def main() -> int:
     logger.info("config_path=%s", args.config)
 
     git_hash = get_git_hash()
-    config["git_hash"] = git_hash
+    raw_config["git_hash"] = git_hash
     logger.info("git_hash=%s", git_hash)
 
-    seed = int(config.get("seed", 42))
+    resolved = resolve_config(raw_config)
+    resolved_path = write_resolved_config(resolved, run_dir)
+    issues = validate_config(resolved) + validate_paths(resolved)
+    logger.info("resolved_config_path=%s", resolved_path)
+    if issues:
+        logger.info("config_issues=%s", issues)
+
+    seed = int(get_path(resolved, "runtime.seed", 42))
     random.seed(seed)
     np.random.seed(seed)
     logger.info("seed=%d", seed)
 
-    dev_path = config.get("processed_dev_path", "data/processed/dev.jsonl")
+    processed_dir = get_path(resolved, "data.processed_dir", "data/processed")
+    dev_file = get_path(resolved, "data.splits.dev", "dev.jsonl")
+    dev_path = os.path.join(processed_dir, dev_file)
     records = load_jsonl(dev_path)
 
-    subset_qids = load_subset(config.get("subset_qids_path"))
+    subset_qids = load_subset(raw_config.get("subset_qids_path"))
     if subset_qids:
         records = [r for r in records if r.get("qid") in subset_qids]
 
-    use_multistep = bool(config.get("use_multistep_results", False))
-    multistep_path = config.get("multistep_results_path")
+    use_multistep = bool(raw_config.get("use_multistep_results", False))
+    multistep_path = raw_config.get("multistep_results_path")
 
     retriever = None
     if not use_multistep:
-        retriever = build_retriever(config)
+        retriever = build_retriever(resolved)
+        logger.info("dense_model_loaded=%s", retriever.loaded_model_name)
 
     retrieval_results = {}
     if use_multistep:
@@ -131,10 +150,12 @@ def main() -> int:
     traces_path = os.path.join(run_dir, "calc_traces.jsonl")
     predictions_path = os.path.join(run_dir, "predictions_calc.jsonl")
 
-    output_percent = bool(config.get("output_percent", True))
-    top_k = int(config.get("retriever", {}).get("top_k", 5))
-    alpha = float(config.get("retriever", {}).get("alpha", 0.5))
-    mode = config.get("retriever", {}).get("mode", "dense")
+    output_percent = bool(get_path(resolved, "calculator.parsing.output_percent", True))
+    top_k = int(get_path(resolved, "retriever.top_k", 5))
+    alpha = float(get_path(resolved, "retriever.hybrid.alpha", 0.5))
+    mode = get_path(resolved, "retriever.mode", "dense")
+    chunk_size = int(get_path(resolved, "chunking.chunk_size", 0))
+    overlap = int(get_path(resolved, "chunking.overlap", 0))
     logger.info("use_multistep=%s multistep_results_path=%s", use_multistep, multistep_path)
     logger.info(
         "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s",
@@ -142,6 +163,12 @@ def main() -> int:
         top_k,
         alpha,
         output_percent,
+    )
+    logger.info(
+        "dense_model=%s chunk_size=%d overlap=%d",
+        get_path(resolved, "retriever.dense.model_name_or_path"),
+        chunk_size,
+        overlap,
     )
 
     extract_total = 0
@@ -214,7 +241,34 @@ def main() -> int:
             results_f.write(json.dumps(result.__dict__, ensure_ascii=False) + "\n")
             traces_f.write(json.dumps(trace.__dict__, ensure_ascii=False) + "\n")
 
-            if result.status == "ok":
+            gate_cfg = get_path(resolved, "calculator.gate", {}) or {}
+            allow_tasks = gate_cfg.get("allow_task_types", ["yoy", "diff"])
+            min_conf = float(gate_cfg.get("min_conf", 0.0))
+            require_unit = bool(gate_cfg.get("require_unit_consistency", True))
+            require_year = bool(gate_cfg.get("require_year_match", True))
+            allow_inferred = bool(gate_cfg.get("allow_inferred", False))
+
+            gate_reason = None
+            if gate_cfg.get("enabled", True):
+                if result.task_type not in allow_tasks:
+                    gate_reason = "gate_task"
+                elif result.status != "ok":
+                    gate_reason = f"status_{result.status}"
+                elif result.confidence < min_conf:
+                    gate_reason = "gate_conf"
+                else:
+                    units = [i.get("unit") for i in result.inputs]
+                    if require_unit and units and len({u for u in units if u}) > 1:
+                        gate_reason = "gate_unit"
+                    if require_year and result.task_type == "yoy":
+                        years = [i.get("year") for i in result.inputs]
+                        inferred = [bool(i.get("inferred_year")) for i in result.inputs]
+                        if any(y is None for y in years):
+                            gate_reason = "gate_year"
+                        if any(inferred) and not allow_inferred:
+                            gate_reason = "gate_inferred"
+
+            if result.status == "ok" and gate_reason is None:
                 used_chunks = [i.get("chunk_id") for i in result.inputs if i.get("chunk_id")]
                 used_chunks = [u for u in used_chunks if u]
                 unit = result.result_unit or ""
@@ -223,7 +277,7 @@ def main() -> int:
             else:
                 used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
                 pred_answer = placeholder_generate(query, chunks)
-                fallback_reason = result.status
+                fallback_reason = gate_reason or result.status
                 fallback_counts[fallback_reason] += 1
 
             preds_f.write(
@@ -269,8 +323,11 @@ def main() -> int:
     with open(calc_stats_path, "w", encoding="utf-8") as f:
         json.dump(calc_stats, f, indent=2)
 
+    with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
+        f.write(f"{git_hash}\n")
+
     config_out = os.path.join(run_dir, "config.yaml")
-    save_config(config, config_out)
+    save_config(resolved, config_out)
 
     logger.info("extract_stats=%s", extract_stats)
     logger.info("calc_stats=%s", calc_stats)

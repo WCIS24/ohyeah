@@ -77,6 +77,44 @@ def select_group(groups: Dict[Tuple, List[Fact]]) -> Tuple[Optional[Tuple], List
     return best_key, best_group
 
 
+def compute_result_confidence(
+    task: str,
+    inputs: List[Dict[str, object]],
+    group: List[Fact],
+) -> float:
+    if not inputs:
+        return 0.0
+    conf_values = [
+        float(i.get("confidence", 0.0))
+        for i in inputs
+        if i.get("confidence") is not None
+    ]
+    if not conf_values:
+        return 0.0
+    base_conf = min(conf_values)
+    year_bonus = 0.0
+    if task == "yoy":
+        inferred_flags = [bool(i.get("inferred_year")) for i in inputs]
+        if not any(inferred_flags):
+            year_bonus += 0.1
+        if all(i.get("year") is not None for i in inputs):
+            year_bonus += 0.1
+    unit_bonus = 0.0
+    units = [i.get("unit") for i in inputs]
+    if all(u is not None for u in units) and len(set(units)) == 1:
+        unit_bonus += 0.1
+    metric_bonus = 0.0
+    if any(f.metric for f in group):
+        metric_bonus += 0.05
+    if any(f.entity for f in group):
+        metric_bonus += 0.05
+    conflict_penalty = 0.0
+    if len(group) > len(inputs) + 1:
+        conflict_penalty -= 0.1
+    score = base_conf + year_bonus + unit_bonus + metric_bonus + conflict_penalty
+    return max(0.0, min(1.0, score))
+
+
 def pick_values_for_years(facts: List[Fact], years: List[int]) -> Optional[List[Fact]]:
     values = []
     for y in years:
@@ -158,6 +196,27 @@ def compute_yoy(
     years_sorted = sorted(selected_by_year.keys())
     x_prev = selected_by_year[years_sorted[0]]
     x_t = selected_by_year[years_sorted[1]]
+
+    if x_prev.unit and x_t.unit and x_prev.unit != x_t.unit:
+        return (
+            CalcResult(
+                qid="",
+                task_type="yoy",
+                inputs=[],
+                result_value=None,
+                result_unit="%" if output_percent else "ratio",
+                explanation="unit mismatch",
+                confidence=0.0,
+                status="unit_mismatch",
+            ),
+            CalcTrace(
+                qid="",
+                task_type="yoy",
+                selected_key=None,
+                candidates=len(facts),
+                reason="unit_mismatch",
+            ),
+        )
     if x_prev.value == 0:
         return (
             CalcResult(
@@ -185,12 +244,21 @@ def compute_yoy(
 
     explanation = f"YoY = ({x_t.value} - {x_prev.value}) / {x_prev.value}"
     inputs = [
-        {"year": x_t.year, "value": x_t.value, "unit": x_t.unit, "chunk_id": x_t.chunk_id},
+        {
+            "year": x_t.year,
+            "value": x_t.value,
+            "unit": x_t.unit,
+            "chunk_id": x_t.chunk_id,
+            "inferred_year": x_t.inferred_year,
+            "confidence": x_t.confidence,
+        },
         {
             "year": x_prev.year,
             "value": x_prev.value,
             "unit": x_prev.unit,
             "chunk_id": x_prev.chunk_id,
+            "inferred_year": x_prev.inferred_year,
+            "confidence": x_prev.confidence,
         },
     ]
     return (
@@ -257,8 +325,22 @@ def compute_diff(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
     result_value = a.value - b.value
     explanation = f"diff = {a.value} - {b.value}"
     inputs = [
-        {"year": a.year, "value": a.value, "unit": a.unit, "chunk_id": a.chunk_id},
-        {"year": b.year, "value": b.value, "unit": b.unit, "chunk_id": b.chunk_id},
+        {
+            "year": a.year,
+            "value": a.value,
+            "unit": a.unit,
+            "chunk_id": a.chunk_id,
+            "inferred_year": a.inferred_year,
+            "confidence": a.confidence,
+        },
+        {
+            "year": b.year,
+            "value": b.value,
+            "unit": b.unit,
+            "chunk_id": b.chunk_id,
+            "inferred_year": b.inferred_year,
+            "confidence": b.confidence,
+        },
     ]
 
     return (
@@ -346,8 +428,22 @@ def compute_share(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
     result_value = share * 100
     explanation = f"share = {part.value} / {total.value}"
     inputs = [
-        {"year": part.year, "value": part.value, "unit": part.unit, "chunk_id": part.chunk_id},
-        {"year": total.year, "value": total.value, "unit": total.unit, "chunk_id": total.chunk_id},
+        {
+            "year": part.year,
+            "value": part.value,
+            "unit": part.unit,
+            "chunk_id": part.chunk_id,
+            "inferred_year": part.inferred_year,
+            "confidence": part.confidence,
+        },
+        {
+            "year": total.year,
+            "value": total.value,
+            "unit": total.unit,
+            "chunk_id": total.chunk_id,
+            "inferred_year": total.inferred_year,
+            "confidence": total.confidence,
+        },
     ]
 
     return (
@@ -434,8 +530,22 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
     result_value = a.value / b.value
     explanation = f"multiple = {a.value} / {b.value}"
     inputs = [
-        {"year": a.year, "value": a.value, "unit": a.unit, "chunk_id": a.chunk_id},
-        {"year": b.year, "value": b.value, "unit": b.unit, "chunk_id": b.chunk_id},
+        {
+            "year": a.year,
+            "value": a.value,
+            "unit": a.unit,
+            "chunk_id": a.chunk_id,
+            "inferred_year": a.inferred_year,
+            "confidence": a.confidence,
+        },
+        {
+            "year": b.year,
+            "value": b.value,
+            "unit": b.unit,
+            "chunk_id": b.chunk_id,
+            "inferred_year": b.inferred_year,
+            "confidence": b.confidence,
+        },
     ]
 
     return (
@@ -552,6 +662,11 @@ def compute_for_query(
             candidates=len(facts),
             reason="unsupported",
         )
+
+    if result.status == "ok":
+        result.confidence = compute_result_confidence(task, result.inputs, group)
+    else:
+        result.confidence = 0.0
 
     result.qid = ""
     trace.qid = ""
