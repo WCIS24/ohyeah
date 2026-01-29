@@ -133,6 +133,25 @@ Outputs:
 - `predictions_calc.jsonl`: final answers with fallback info.
 - `numeric_metrics.json`: Numeric-EM / error metrics.
 
+## Step6 System Tuning
+
+```powershell
+# 0) validate config
+python scripts\validate_config.py --config configs\step6_base.yaml
+
+# 1) multistep sweep
+python scripts\sweep.py --base-config configs\step6_base.yaml --search-space configs\search_space_multistep.yaml
+
+# 2) calculator threshold sweep
+python scripts\sweep.py --base-config configs\step6_base.yaml --search-space configs\search_space_calc.yaml
+
+# 3) run 6-group matrix
+python scripts\run_matrix_step6.py --base-config configs\step6_base.yaml --matrix configs\step6_matrix.yaml
+
+# 4) build tables
+python scripts\make_tables.py --experiments configs\step6_experiments.yaml
+```
+
 ## FAISS note
 
 - The retriever tries to use FAISS for dense indexing when available.
