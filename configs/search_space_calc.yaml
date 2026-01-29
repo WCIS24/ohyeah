@@ -1,4 +1,5 @@
 ﻿parameters:
+  retriever.dense.model_name_or_path: [models/retriever_ft/latest]
   calculator.enabled: [true]
   calculator.gate.min_conf: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
   calculator.gate.allow_task_types: [[yoy, diff]]
@@ -7,5 +8,5 @@ objective:
   mode: max
 constraint:
   metric: numeric_dev.coverage
-  baseline_metrics_path: outputs/<baseline_run>/numeric_metrics.json
+  baseline_metrics_path: outputs/20260129_182450_5ba5f4/numeric_metrics.json
   min_delta: -0.02

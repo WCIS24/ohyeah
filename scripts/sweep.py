@@ -52,7 +52,10 @@ def constraint_min_value(constraint: Dict[str, Any]) -> Any:
     if baseline_path and metric and os.path.exists(baseline_path):
         with open(baseline_path, "r", encoding="utf-8") as f:
             base = json.load(f)
-        base_val = base.get(metric)
+        if "metrics" in base:
+            base_val = get_metric(base, metric)
+        else:
+            base_val = base.get(metric)
         if base_val is None:
             return None
         return base_val + delta

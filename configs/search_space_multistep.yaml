@@ -1,8 +1,9 @@
 ﻿parameters:
+  retriever.dense.model_name_or_path: [models/retriever_ft/latest]
   multistep.enabled: [true]
   multistep.max_steps: [2, 3]
-  multistep.top_k_each_step: [5, 10]
-  multistep.novelty_threshold: [0.0, 0.3]
+  multistep.top_k_each_step: [5]
+  multistep.novelty_threshold: [0.0, 0.3, 0.6]
   multistep.stop_no_new_steps: [1]
   multistep.merge_strategy: [maxscore, step1_first]
 objective:
@@ -10,5 +11,5 @@ objective:
   mode: max
 constraint:
   metric: retrieval_full.recall@10
-  baseline_metrics_path: outputs/<baseline_run>/metrics.json
+  baseline_metrics_path: outputs/step6_baseline_postft/summary.json
   min_delta: -0.01

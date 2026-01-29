@@ -121,10 +121,13 @@ def main() -> int:
     retriever.build_index(corpus_chunks)
     logger.info("dense_model_loaded=%s", retriever.loaded_model_name)
 
+    k_list = [int(k) for k in get_path(resolved, "eval.k_list", [1, 5, 10])]
+    final_top_k = max(k_list) if k_list else int(get_path(resolved, "retriever.top_k", 5))
+
     ms_config = MultiStepConfig(
         max_steps=int(get_path(resolved, "multistep.max_steps", 3)),
         top_k_each_step=int(get_path(resolved, "multistep.top_k_each_step", 5)),
-        final_top_k=int(get_path(resolved, "retriever.top_k", 5)),
+        final_top_k=final_top_k,
         alpha=float(get_path(resolved, "retriever.hybrid.alpha", 0.5)),
         mode=get_path(resolved, "retriever.mode", "dense"),
         novelty_threshold=float(get_path(resolved, "multistep.novelty_threshold", 0.3)),

@@ -16,10 +16,9 @@ chunking:
 retriever:
   mode: dense
   top_k: 5
-  top_k_each_step: 5
   dense:
     enabled: true
-    model_name_or_path: sentence-transformers/all-MiniLM-L6-v2
+    model_name_or_path: models/retriever_ft/latest
   hybrid:
     enabled: true
     alpha: 0.5
@@ -30,36 +29,9 @@ retriever:
 
 multistep:
   enabled: false
-  max_steps: 3
-  top_k_each_step: 5
-  novelty_threshold: 0.3
-  stop_no_new_steps: 2
-  merge_strategy: maxscore
-  gate:
-    enabled: true
-    min_gap_conf: 0.3
-    allow_types: [YEAR, COMPARE]
 
 calculator:
   enabled: false
-  gate:
-    enabled: true
-    min_conf: 0.4
-    require_unit_consistency: true
-    require_year_match: true
-    allow_inferred: false
-    allow_task_types: [yoy, diff]
-  parsing:
-    rounding: 4
-    thousand_sep: ","
-    unit_map:
-      billion: 1000000000
-      million: 1000000
-      thousand: 1000
-      k: 1000
-      m: 1000000
-      b: 1000000000
-    output_percent: true
 
 eval:
   k_list: [1, 5, 10]

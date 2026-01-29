@@ -29,7 +29,7 @@ from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a unified experiment")
     parser.add_argument("--config", required=True, help="Base config YAML")
-    parser.add_argument("--overrides", nargs="*", default=[], help="key=value overrides")
+    parser.add_argument("--overrides", action="append", default=[], help="key=value overrides")
     parser.add_argument("--tag", default=None, help="Tag for grouping")
     return parser.parse_args()
 

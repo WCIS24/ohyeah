@@ -135,7 +135,7 @@ def main() -> int:
     logger.info(
         "predictions_path=%s subset_qids_path=%s",
         predictions_path,
-        config.get("subset_qids_path"),
+        raw_config.get("subset_qids_path"),
     )
 
     processed_dir = get_path(resolved, "data.processed_dir", "data/processed")
