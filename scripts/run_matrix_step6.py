@@ -9,6 +9,11 @@ from typing import Any, Dict, List
 
 import yaml
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+SRC_DIR = os.path.join(ROOT_DIR, "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
 from finder_rag.utils import ensure_dir, generate_run_id
 
 
@@ -47,7 +52,7 @@ def main() -> int:
         for ov in overrides:
             cmd += ["--overrides", ov]
 
-        proc = subprocess.run(cmd, cwd=os.getcwd())
+        proc = subprocess.run(cmd, cwd=ROOT_DIR)
         if proc.returncode != 0:
             results.append({"label": exp.get("label"), "run_id": run_id, "status": "failed"})
             continue
