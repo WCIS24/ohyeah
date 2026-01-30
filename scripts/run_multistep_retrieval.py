@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="Path to YAML config")
     parser.add_argument("--subset-qids", default=None, help="Optional subset qid list path")
     parser.add_argument("--max-steps", type=int, default=None, help="Override max steps")
+    parser.add_argument("--top-k-final", type=int, default=None, help="Override final top-k")
     parser.add_argument("--novelty-threshold", type=float, default=None)
     parser.add_argument("--gap-enabled", type=int, default=None, help="1/0")
     parser.add_argument("--refiner-enabled", type=int, default=None, help="1/0")
@@ -46,6 +47,8 @@ def apply_overrides(config: Dict[str, Any], args: argparse.Namespace) -> Dict[st
         config["subset_qids_path"] = args.subset_qids
     if args.max_steps is not None:
         config["max_steps"] = args.max_steps
+    if args.top_k_final is not None:
+        config["top_k_final"] = args.top_k_final
     if args.novelty_threshold is not None:
         config["novelty_threshold"] = args.novelty_threshold
     if args.gap_enabled is not None:
@@ -122,7 +125,9 @@ def main() -> int:
     logger.info("dense_model_loaded=%s", retriever.loaded_model_name)
 
     k_list = [int(k) for k in get_path(resolved, "eval.k_list", [1, 5, 10])]
-    final_top_k = max(k_list) if k_list else int(get_path(resolved, "retriever.top_k", 5))
+    final_top_k = int(get_path(resolved, "multistep.top_k_final", 0))
+    if final_top_k <= 0:
+        final_top_k = max(k_list) if k_list else int(get_path(resolved, "retriever.top_k", 5))
 
     ms_config = MultiStepConfig(
         max_steps=int(get_path(resolved, "multistep.max_steps", 3)),
@@ -145,7 +150,7 @@ def main() -> int:
     chunk_size = int(get_path(resolved, "chunking.chunk_size", 0))
     overlap = int(get_path(resolved, "chunking.overlap", 0))
     logger.info(
-        "dense_model=%s mode=%s alpha=%.3f chunk_size=%d overlap=%d merge=%s gate_min=%.2f",
+        "dense_model=%s mode=%s alpha=%.3f chunk_size=%d overlap=%d merge=%s gate_min=%.2f final_top_k=%d",
         retriever.loaded_model_name,
         ms_config.mode,
         ms_config.alpha,
@@ -153,6 +158,7 @@ def main() -> int:
         overlap,
         ms_config.merge_strategy,
         ms_config.gate_min_gap_conf,
+        ms_config.final_top_k,
     )
 
     engine = MultiStepRetriever(retriever, ms_config)
@@ -164,6 +170,9 @@ def main() -> int:
     total_steps = 0
     total_new = 0
     total_topk = 0
+    final_counts: List[int] = []
+    collected_counts: List[int] = []
+    per_qid_counts: List[Dict[str, int]] = []
 
     with open(traces_path, "w", encoding="utf-8") as traces_f, open(
         results_path, "w", encoding="utf-8"
@@ -202,6 +211,11 @@ def main() -> int:
                 )
                 + "\n"
             )
+            final_counts.append(len(final_top))
+            collected_counts.append(len(collected_chunks))
+            per_qid_counts.append(
+                {"qid": qid, "final": len(final_top), "collected": len(collected_chunks)}
+            )
 
     avg_steps = total_steps / len(records) if records else 0.0
     avg_new_per_step = total_new / total_steps if total_steps else 0.0
@@ -215,6 +229,32 @@ def main() -> int:
         avg_topk_per_step,
     )
     logger.info("stop_reasons=%s", dict(stop_counts))
+    if per_qid_counts:
+        rng = random.Random(seed)
+        sample = rng.sample(per_qid_counts, k=min(20, len(per_qid_counts)))
+        final_vals = [c["final"] for c in per_qid_counts]
+        collected_vals = [c["collected"] for c in per_qid_counts]
+        final_vals_sorted = sorted(final_vals)
+        collected_vals_sorted = sorted(collected_vals)
+        mid = len(final_vals_sorted) // 2
+        final_median = final_vals_sorted[mid]
+        collected_median = collected_vals_sorted[mid]
+        logger.info(
+            "final_topk_counts(min/med/max)=%d/%d/%d",
+            final_vals_sorted[0],
+            final_median,
+            final_vals_sorted[-1],
+        )
+        logger.info(
+            "collected_counts(min/med/max)=%d/%d/%d",
+            collected_vals_sorted[0],
+            collected_median,
+            collected_vals_sorted[-1],
+        )
+        logger.info("sample_qid_counts=%s", sample)
+        below_final = sum(1 for v in final_vals if v < final_top_k)
+        if below_final > 0:
+            logger.info("final_topk_below_target=%d target=%d", below_final, final_top_k)
 
     with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
         f.write(f"{git_hash}\n")

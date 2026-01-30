@@ -165,6 +165,35 @@ class MultiStepRetriever:
                 used_query = query
 
         final_topk = self._merge_and_rank(collected_by_id, step1_ids)
+        fallback_added = 0
+        if len(final_topk) < self.config.final_top_k:
+            baseline_results = self.retriever.retrieve(
+                query,
+                top_k=self.config.final_top_k,
+                alpha=self.config.alpha,
+                mode=self.config.mode,
+            )
+            for res in baseline_results:
+                chunk_id = res.get("meta", {}).get("chunk_id")
+                if not chunk_id or chunk_id in collected_by_id:
+                    continue
+                entry = {
+                    "chunk_id": chunk_id,
+                    "score": res.get("score"),
+                    "meta": res.get("meta"),
+                    "text": res.get("text"),
+                }
+                collected_by_id[chunk_id] = entry
+                collected.append(entry)
+                fallback_added += 1
+                if len(collected_by_id) >= self.config.final_top_k:
+                    break
+            final_topk = self._merge_and_rank(collected_by_id, step1_ids)
+
+        if trace:
+            trace[-1]["final_pool_size"] = len(collected_by_id)
+            trace[-1]["final_topk_size"] = len(final_topk)
+            trace[-1]["final_fallback_added"] = fallback_added
         return collected, trace, stop_reason, final_topk
 
     def _merge_and_rank(self, collected_by_id: Dict[str, dict], step1_ids: List[str]) -> List[dict]:

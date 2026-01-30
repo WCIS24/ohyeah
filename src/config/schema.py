@@ -29,6 +29,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "enabled": False,
         "max_steps": 3,
         "top_k_each_step": 5,
+        "top_k_final": 10,
         "novelty_threshold": 0.3,
         "stop_no_new_steps": 2,
         "merge_strategy": "maxscore",
@@ -100,6 +101,7 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "multistep.enabled": (bool,),
     "multistep.max_steps": (int,),
     "multistep.top_k_each_step": (int,),
+    "multistep.top_k_final": (int,),
     "multistep.novelty_threshold": (float, int),
     "multistep.stop_no_new_steps": (int,),
     "multistep.merge_strategy": (str,),
@@ -215,6 +217,8 @@ def _apply_legacy_mappings(raw: Dict[str, Any], resolved: Dict[str, Any]) -> Non
 
     if "max_steps" in raw:
         set_path(resolved, "multistep.max_steps", int(raw.get("max_steps")))
+    if "top_k_final" in raw:
+        set_path(resolved, "multistep.top_k_final", int(raw.get("top_k_final")))
     if "novelty_threshold" in raw:
         set_path(resolved, "multistep.novelty_threshold", float(raw.get("novelty_threshold")))
     if "stop_no_new_steps" in raw:

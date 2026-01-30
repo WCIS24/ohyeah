@@ -7,6 +7,7 @@
   - eval_multistep: outputs/20260128_194522_9b8e83
   - traces: outputs/20260128_194024_dab941/multistep_traces.jsonl
 - complex subset eval: outputs/20260128_195020_57287e
+ - fixed eval (top_k_final=10): outputs/20260130_122935_424646 (run) + outputs/20260130_123904_e49881 (eval)
 
 ## Baseline vs Multistep (full dev)
 
@@ -43,3 +44,5 @@ Subset path: data/subsets/dev_complex_qids.txt
 - Complex subset built by scripts/build_subsets.py; stats in outputs/<run_id>/subsets_stats.json.
 - Matching rule identical to Step2 (doc_id/evidence_id first, fallback text containment).
 - traces provide step-level evidence for paper case studies.
+- `top_k_each_step` is per-step retrieval size, while `top_k_final` is the final candidate pool used for eval.
+- Ensure `top_k_final >= max(k_values)` to avoid Recall@10 being truncated by output length.

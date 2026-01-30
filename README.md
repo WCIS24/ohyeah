@@ -111,6 +111,10 @@ Outputs:
 - `retrieval_results.jsonl`: final chunks per query.
 - `metrics.json`, `delta_vs_baseline.json`: evaluation metrics and comparison to baseline.
 
+Notes:
+- `top_k_each_step` controls per-step retrieval cost; `top_k_final` controls final output size.
+- Ensure `top_k_final >= max(k_values)` for fair Recall@k evaluation (default is 10).
+
 ## Step5 Calculator (numeric QA)
 
 ```powershell

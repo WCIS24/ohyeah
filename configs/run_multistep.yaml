@@ -14,6 +14,7 @@ retriever:
   device: null
 
 max_steps: 3
+top_k_final: 10
 novelty_threshold: 0.3
 stop_no_new_steps: 2
 gap_enabled: true
