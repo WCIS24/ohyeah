@@ -4,13 +4,17 @@
     overrides:
       - retriever.dense.model_name_or_path=sentence-transformers/all-MiniLM-L6-v2
       - multistep.enabled=false
-      - calculator.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.2
+      - calculator.gate.allow_task_types=[]
   - label: post_ft_baseline
     tag: post_ft
     overrides:
       - retriever.dense.model_name_or_path=models/retriever_ft/latest
       - multistep.enabled=false
-      - calculator.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.2
+      - calculator.gate.allow_task_types=[]
   - label: post_ft_multistep_best
     tag: post_ft_ms
     overrides:
@@ -20,7 +24,7 @@
       - multistep.top_k_each_step=10
       - multistep.novelty_threshold=0.0
       - multistep.stop_no_new_steps=1
-      - multistep.merge_strategy=step1_first
+      - multistep.merge_strategy=maxscore
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=false
   - label: post_ft_baseline_calc_best
@@ -29,7 +33,7 @@
       - retriever.dense.model_name_or_path=models/retriever_ft/latest
       - multistep.enabled=false
       - calculator.enabled=true
-      - calculator.gate.min_conf=0.4
+      - calculator.gate.min_conf=0.2
       - calculator.gate.allow_task_types=[]
   - label: post_ft_multistep_calc_best
     tag: post_ft_ms_calc
@@ -40,10 +44,10 @@
       - multistep.top_k_each_step=10
       - multistep.novelty_threshold=0.0
       - multistep.stop_no_new_steps=1
-      - multistep.merge_strategy=step1_first
+      - multistep.merge_strategy=maxscore
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=true
-      - calculator.gate.min_conf=0.4
+      - calculator.gate.min_conf=0.2
       - calculator.gate.allow_task_types=[]
   - label: post_ft_multistep_T1_calc_best
     tag: post_ft_ms_T1_calc
@@ -54,8 +58,8 @@
       - multistep.top_k_each_step=10
       - multistep.novelty_threshold=0.0
       - multistep.stop_no_new_steps=1
-      - multistep.merge_strategy=step1_first
+      - multistep.merge_strategy=maxscore
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=true
-      - calculator.gate.min_conf=0.4
+      - calculator.gate.min_conf=0.2
       - calculator.gate.allow_task_types=[]
