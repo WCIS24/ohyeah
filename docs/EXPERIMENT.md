@@ -1,34 +1,25 @@
 ﻿# 实验设置
 
 ## 数据集与划分
-使用 FinDER 数据集，按官方或既有切分方式划分为 train / dev / test。所有子集与样本格式统一为：
+使用 FinDER 数据集，包含 5,703 个查询—证据—答案三元组。数据按 train/dev/test 划分，所有样本统一格式：
 
 ```json
-{
-  "qid": "...",
-  "query": "...",
-  "answer": "...",
-  "evidences": [{"text": "...", "doc_id": null, "meta": {}}],
-  "meta": {}
-}
+{ "qid": "...", "query": "...", "answer": "...", "evidences": [{"text": "..."}], "meta": {} }
 ```
 
 ## 子集定义
-- **complex_dev**：满足任一条件即进入子集：
-  - 多证据（evidence ≥ 2）
-  - 查询包含 ≥2 年份
-  - 查询含比较/变化关键词（vs/compare/yoy/增长率 等）
-  - 查询含数值与年份组合
-- **numeric_dev**：查询或答案含数值/百分号/同比/差值/倍数关键词。
+- **complex\_dev**：满足任一条件即进入子集：多证据、查询含 ≥2 年份、含比较/变化关键词、或含数值+年份组合。
+- **numeric\_dev**：查询或答案含数字/百分号/同比/差值/倍数关键词。
 
-## 评价指标
-- **检索指标**：Recall@k、MRR@k、evidence_hit@k
-- **数值指标**：Numeric-EM、相对误差（RelErr）、覆盖率（Coverage）
-- **不确定匹配比例**：当 doc_id/evidence_id 缺失时，回退到文本匹配并记录比例。
+## 评价指标与口径
+- 检索指标：Recall@k、MRR@k、evidence\_hit@k
+- QA 指标：EM/F1（用于对照）
+- 数值指标：Numeric-EM、RelErr、Coverage
+- 不确定匹配比例：当证据缺少 doc\_id/evidence\_id 时使用文本匹配，并记录比例。
 
 ## 关键参数
-- 检索器：稀疏（BM25）+ 稠密（sentence-transformers）+ 混合（alpha=0.5）
-- 多步检索（best）：max_steps=2, top_k_each_step=10, merge_strategy=maxscore
-- 计算器门控（best）：min_conf=0.2, allow_task_types=[]
+- 检索器：BM25 + Dense + Hybrid（alpha=0.5）
+- 多步检索（best）：max\_steps=2，top\_k\_each\_step=10，merge=maxscore
+- 计算器门控（best）：min\_conf=0.2，allow\_task\_types=[]
 
-所有实验参数与最终配置均在 `outputs/<run_id>/config.resolved.yaml` 中可复现追溯。
+所有实验配置与结果均保存在 outputs/<run\_id>/，可复现。

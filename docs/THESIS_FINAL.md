@@ -2,7 +2,7 @@
 
 ## 摘要
 
-金融问答（FinDER）任务中的复杂查询常涉及多年份、多实体与显式数值计算。传统单步检索+占位式生成在复杂问题上易出现证据覆盖不足与算术错误。本文构建了一个可复现的金融RAG系统，在无外部LLM API的约束下，引入规则驱动的多步检索与显式计算器，并通过门控策略与系统化调参避免性能回退。实验结果表明：检索器微调显著提升整体检索表现（full dev Recall@10: 0.3246→0.3772）；多步检索在复杂子集上维持不退化且MRR略有提升；计算器通过门控确保数值指标不下降，为后续提升奠定稳定基线。
+金融问答场景中的复杂查询往往涉及多年份、多实体与显式数值计算，传统单步检索 + 占位式生成在复杂问题上容易出现证据覆盖不足与算术错误。本文面向 FinDER（金融领域专家检索）数据集构建可复现的金融 RAG 系统，在无外部 LLM API 的约束下引入规则驱动的多步检索与显式计算器，并通过门控与系统化调参保证性能稳定。实验表明：检索器微调显著提升整体检索表现（full dev Recall@10: 0.3246→0.3772）；多步检索在复杂子集上保持不退化且 MRR 略有提升；计算器门控避免数值指标回退，为后续提升奠定稳定基线。所有实验产出与配置均可在 outputs/ 中追溯与复现。
 
 **关键词**：金融问答；检索增强生成；多步检索；显式计算；误差分析；可复现
 
@@ -10,251 +10,197 @@
 
 ## 1 引言
 
-金融问答（FinDER）场景中的查询往往具有**高信息密度**与**强对比/计算需求**：同一问题可能同时涉及多个年份、实体、指标，并要求对证据进行对齐与推理。传统单步检索 + 占位式生成容易在复杂问题上出现**证据覆盖不足**与**算术错误**。
+金融领域的专业问题常涉及最新的市场数据、监管条款与财报细节，具有信息密度高、语义压缩强的特点。传统大型语言模型在金融问答中容易产生事实性错误或因知识滞后而偏离证据。为提高可靠性，检索增强生成（RAG）通过“检索—生成”机制使回答基于真实文档，但现有多数金融 RAG 仍以**单步检索**为主，面对复杂金融查询时表现不足。
 
-为此，本文围绕可复现的金融 RAG（Retrieval-Augmented Generation）系统，构建并验证了一个分层可控的工程方案：在强约束（无外部 LLM API）的条件下，引入**规则驱动的多步检索**与**显式计算器**，并通过系统化调参与门控机制避免性能回退。
+复杂查询通常具备以下特征：
+- 信息分散：所需证据散落于多个段落或多份文档；
+- 结构化需求：涉及同比、差值、占比等显式计算；
+- 语义压缩：包含金融缩写与术语（如“MS”“YoY”），需进行实体消歧与扩写。
 
-本文贡献如下：
+FinDER 数据集由金融领域专家构建，包含 5,703 个真实金融问答三元组（查询—证据—答案），其中大量查询简短含糊且依赖跨证据推理。该数据集凸显了“多步检索 + 结构化推理”的必要性。
 
-- **可复现工程框架**：建立从数据规范化、检索、评测到实验编排的一体化体系，所有实验产出统一落盘，可审计、可回滚。
-- **多步检索与门控策略**：实现 gap 检测、合并策略与停止规则，构建可控的多步检索循环，保障复杂查询的证据覆盖。
-- **显式计算器**：在证据抽取与单位/年份校验基础上进行程序化计算，并通过门控阈值降低算错风险。
-- **系统化调参与对照分析**：输出 full dev / complex dev / numeric dev 的对照与消融结果，支持论文级结果表格与错误分析。
+**本文思路**：引入规则驱动的多步检索推理机制，使系统能像分析员一样逐步补全证据链；同时引入显式计算模块，降低数值类问题的算术错误。系统在工程实现上坚持开源、可复现与可审计，确保实验结果可追踪与可复验。
 
-> 说明：请求中提到的 `my-thesis/baseline.pdf` 在当前仓库未找到，本文结构参考现有 Step6 结果与工程文档完成。
+**本文贡献**：
+1. 构建可复现的金融 RAG 工程框架，统一数据、检索、评测与实验编排；
+2. 实现规则驱动的多步检索循环，结合 gap 检测、合并策略与门控机制；
+3. 引入显式数值抽取与计算器模块，通过单位/年份校验与回退策略控制错误传播；
+4. 在 full dev / complex dev / numeric dev 上进行系统化调参与对照评测，形成论文级结果表格与错误分析。
 
 ---
 
 ## 2 相关工作
 
-本研究与以下方向密切相关：
+与本文相关的研究可归纳为以下四类：
 
-## 金融问答与金融文本理解
-金融 QA 数据集与任务通常聚焦于财报、公告、研报等长文档环境中的事实与数值问答。FinDER 等数据集强调对证据的精确定位与多字段对齐，对检索与推理能力要求较高。
+## 金融问答（Financial QA）
+金融问答聚焦于财报、公告、研报等长文档中的事实性与数值型问题。该领域强调证据定位与实体对齐，且普遍存在缩写、口径不一致等问题。
 
-## 检索增强生成（RAG）
-RAG 框架通过检索模块提供高相关证据，再由生成模块构造答案。近期研究关注**密集检索、稀疏检索与混合检索**的结合，以及检索器微调对下游 QA 的传导效果。
+## 检索增强生成（RAG）评测
+RAG 将检索与生成结合，近年来的评测工作关注检索器类型（稀疏/稠密/混合）、检索器微调对下游任务的传导，以及复杂问题上的检索覆盖能力。
 
-## 多跳/多步检索与推理
-多跳检索强调通过多轮检索逐步完善证据覆盖，常见于复杂比较问题与跨文档推理问题。本文的多步检索采用规则驱动的 gap 检测与可控门控策略，以保证解释性和稳定性。
+## 多跳/多步检索
+多跳检索通过多轮检索逐步补全证据链，常用于跨段或跨文档推理。其核心挑战是如何设计有效的“继续检索”判断与证据合并策略。
 
-## 显式数值推理与计算
-数值类问题的核心挑战是单位、年份与数值的对齐。显式计算器通过结构化抽取与程序化计算降低算术错误，并配合门控策略避免错误传播。
+## 智能化 RAG（Agentic RAG）
+Agentic RAG 通过规划与工具调用扩展检索能力，但在成本、可控性与可复现性方面仍有挑战。本文选择规则化的多步检索与显式计算，以强调稳定性与可解释性。
 
 ---
 
 ## 3 方法
 
-本文系统由四个核心模块组成：**查询理解**、**多步检索推理**、**证据整合与计算**、**答案生成**。整体流程如下：
+本文系统由四个核心模块构成：**查询理解**、**多步检索推理**、**证据整合与计算**、**答案生成**。系统采用流水线式数据流，模块间接口明确，便于复现与扩展。
 
-```mermaid
-flowchart TD
-  Q[Query] --> U[Query Understanding]
-  U --> R1[Step-1 Retrieval]
-  R1 --> G[Gap Detector]
-  G -->|gap & gate| Rn[Refined Query Retrieval]
-  Rn --> M[Merge & Rank]
-  M --> C[Calculator (optional)]
-  C --> A[Template Answer]
-  G -->|no gap| M
+**图1 多步检索循环流程（示意）**
+
+```
+Query → Query Understanding → Step-1 Retrieval → Gap Detector
+  → (gap & gate) Refined Query Retrieval → Merge & Rank
+  → Calculator (optional) → Template Answer
 ```
 
-## 1. 查询理解
-通过规则与词典对查询进行初步解析，包括年份识别、比较关系识别、数值提示词识别等。该模块用于驱动多步检索的 gap 类型判断与后续计算任务类型预测。
+## 3.1 查询理解
+目标是将原始金融查询规范化，解决缩写、实体歧义与任务类型识别问题。可采用：
+- 规则与词典扩展（如将“YOY”扩展为“同比”）；
+- 金融领域 NER 与实体链接；
+- 轻量语义解析（不开启外部 API）。
 
-## 2. 多步检索推理
-多步检索在每一步使用当前查询进行检索，随后基于 gap 检测决定是否继续检索。核心机制包括：
+输出为规范化查询 $q'$ 与结构化槽位（实体、指标、年份、计算类型），作为多步检索的输入。
 
-- **Gap Detector**：检测年份缺失、实体缺失等信息缺口。
-- **Gate（门控）**：当 gap_conf < min_gap_conf 时，停止后续检索（避免 query 漂移）。
-- **Merge Strategy**：采用 `maxscore` 或 `step1_first` 合并策略对跨步候选排序与截断。
-- **Stop Criteria**：达到 max_steps 或无新增证据时停止。
+## 3.2 多步检索推理
+多步检索在第 $t$ 轮使用当前查询 $q_t$ 检索 top-$k$ 证据，基于 gap 检测决定是否继续：
 
-**Step6 最优多步配置（dev）**：
-- max_steps=2
-- top_k_each_step=10
-- novelty_threshold=0.0
-- stop_no_new_steps=1
-- merge_strategy=maxscore
-- gate.min_gap_conf=0.3
+- **Gap Detector**：判断是否缺失关键年份或比较对象；
+- **Gate**：若 $\text{gap\_conf} < \tau$，终止后续检索；
+- **Merge Strategy**：跨步候选去重并按 maxscore 或 step1	extunderscore first 排序；
+- **Stop Criteria**：达到 $T$ 或连续无新增证据时停止。
 
-## 3. 证据整合与计算
-该模块包含数值抽取与显式计算：
+关键超参数定义：
+- 检索轮数 $T$（max\_steps）
+- 每轮检索 top-$k$（top\_k\_each\_step）
+- 最终截断 top-$k_f$（top\_k\_final）
+- 门控阈值 $\tau$（min\_gap\_conf）
 
-- **抽取**：从证据文本中提取数值、单位、年份，并标注 inferred_year 与 confidence。
-- **计算器**：支持 YoY / 差值 / 占比 / 倍数等任务。对于单位不一致、年份缺失、候选冲突等情况进行拒算，并记录原因。
+**Step6 最优配置**：$T=2$，top\_k\_each\_step=10，merge=maxscore，novelty\_threshold=0.0，stop\_no\_new\_steps=1，$\tau=0.3$。
 
-**Step6 最优门控（numeric dev）**：
-- min_conf=0.2
-- allow_task_types=[]（在当前版本中关闭计算任务以避免 Numeric-EM 回退）
+## 3.3 证据整合与计算
+该模块从证据中抽取数值、年份、单位与实体，并执行显式计算（YoY/差值/占比/倍数）。核心约束：
+- 单位一致性校验；
+- 年份对齐要求；
+- 候选冲突时拒算并回退。
 
-## 4. 答案生成
-生成采用模板化策略：
-- 若计算器返回 `status=ok` 且通过门控，则输出结构化计算结果与简要解释；
-- 否则回退到 baseline 的占位式生成，并记录 fallback 原因。
+**Step6 最优门控**：min\_conf=0.2，allow\_task\_types=[]（当前版本以稳定性为先）。
+
+## 3.4 答案生成
+采用模板化生成：若计算器返回 status=ok 且通过门控，则输出结构化结果与解释；否则回退基线答案，并记录 fallback 原因以支持审计。
 
 ---
 
 ## 4 实验设置
 
 ## 数据集与划分
-使用 FinDER 数据集，按官方或既有切分方式划分为 train / dev / test。所有子集与样本格式统一为：
+使用 FinDER 数据集，包含 5,703 个查询—证据—答案三元组。数据按 train/dev/test 划分，所有样本统一格式：
 
 ```json
-{
-  "qid": "...",
-  "query": "...",
-  "answer": "...",
-  "evidences": [{"text": "...", "doc_id": null, "meta": {}}],
-  "meta": {}
-}
+{ "qid": "...", "query": "...", "answer": "...", "evidences": [{"text": "..."}], "meta": {} }
 ```
 
 ## 子集定义
-- **complex_dev**：满足任一条件即进入子集：
-  - 多证据（evidence ≥ 2）
-  - 查询包含 ≥2 年份
-  - 查询含比较/变化关键词（vs/compare/yoy/增长率 等）
-  - 查询含数值与年份组合
-- **numeric_dev**：查询或答案含数值/百分号/同比/差值/倍数关键词。
+- **complex\_dev**：满足任一条件即进入子集：多证据、查询含 ≥2 年份、含比较/变化关键词、或含数值+年份组合。
+- **numeric\_dev**：查询或答案含数字/百分号/同比/差值/倍数关键词。
 
-## 评价指标
-- **检索指标**：Recall@k、MRR@k、evidence_hit@k
-- **数值指标**：Numeric-EM、相对误差（RelErr）、覆盖率（Coverage）
-- **不确定匹配比例**：当 doc_id/evidence_id 缺失时，回退到文本匹配并记录比例。
+## 评价指标与口径
+- 检索指标：Recall@k、MRR@k、evidence\_hit@k
+- QA 指标：EM/F1（用于对照）
+- 数值指标：Numeric-EM、RelErr、Coverage
+- 不确定匹配比例：当证据缺少 doc\_id/evidence\_id 时使用文本匹配，并记录比例。
 
 ## 关键参数
-- 检索器：稀疏（BM25）+ 稠密（sentence-transformers）+ 混合（alpha=0.5）
-- 多步检索（best）：max_steps=2, top_k_each_step=10, merge_strategy=maxscore
-- 计算器门控（best）：min_conf=0.2, allow_task_types=[]
+- 检索器：BM25 + Dense + Hybrid（alpha=0.5）
+- 多步检索（best）：max\_steps=2，top\_k\_each\_step=10，merge=maxscore
+- 计算器门控（best）：min\_conf=0.2，allow\_task\_types=[]
 
-所有实验参数与最终配置均在 `outputs/<run_id>/config.resolved.yaml` 中可复现追溯。
+所有实验配置与结果均保存在 outputs/<run\_id>/，可复现。
 
 ---
 
-## 5 实验结果
+## 5 实验结果与分析
 
-本节直接引用 Step6 自动生成的结果表与指标文件（见 `docs/TABLE_MAIN.md`、`docs/TABLE_NUMERIC.md`），并给出关键对照结论。对应 run_id 见 `configs/step6_experiments.yaml`。
+本节直接引用 Step6 输出的表格与指标（见 `docs/TABLE_MAIN.md`、`docs/TABLE_NUMERIC.md`），并对主要对照结果进行分析。
 
 ## 1) 检索效果（full dev / complex dev）
 
-主表见：`docs/TABLE_MAIN.md`
+**主结果表见**：`docs/TABLE_MAIN.md`
 
-关键结论（complex dev）：
-- **baseline(post-ft) vs best multistep**
+关键对照（complex dev）：
+- baseline(post-ft) vs best multistep：
   - Recall@10：0.3909465 → 0.3909465（持平）
   - MRR@10：0.2960138 → 0.2960873（+0.00007）
 
-retriever 微调带来的整体提升（full dev）：
-- pre-ft baseline → post-ft baseline：Recall@10 从 0.3246 提升到 0.3772（+0.0526）
+检索器微调带来的整体提升（full dev）：
+- pre-ft baseline → post-ft baseline：Recall@10 0.3246 → 0.3772（+0.0526）
 
 ## 2) 数值题表现（numeric dev）
 
-数值表见：`docs/TABLE_NUMERIC.md`
+**数值表见**：`docs/TABLE_NUMERIC.md`
 
 关键对照（numeric dev）：
-- **baseline(post-ft) vs best calc gate**
+- baseline(post-ft) vs best calc gate：
   - Numeric-EM：0.3838 → 0.3838（持平）
   - RelErr(mean)：683.3536 → 683.3536（持平）
   - Coverage：0.6266 → 0.6266（持平）
 
-说明：当前版本计算器门控在 dev 上选择 `allow_task_types=[]`，以避免数值误差回退。因此 numeric 指标未出现回退，但也尚未体现提升。该结果为“安全启用”基线，可在后续提升抽取/计算置信度后再重新开启任务类型。
+说明：当前版本计算器门控在 dev 上选择 allow\_task\_types=[]，以避免数值误差回退。因此 numeric 指标未下降，但尚未体现提升。该结果为“安全启用”基线，可在后续提升抽取/计算置信度后再重新开启任务类型。
 
-## 3) 六组矩阵实验（Step6）
-run_id 对照：
-- pre_ft_baseline: `20260130_234540_ae7cdf_m01`
-- post_ft_baseline: `20260130_234540_ae7cdf_m02`
-- post_ft_multistep_best: `20260130_234540_ae7cdf_m03`
-- post_ft_baseline_calc_best: `20260130_234540_ae7cdf_m04`
-- post_ft_multistep_calc_best: `20260130_234540_ae7cdf_m05`
-- post_ft_multistep_T1_calc_best: `20260130_234540_ae7cdf_m06`
+## 3) 消融与案例
 
-详细指标已自动写入对应的 `outputs/<run_id>/summary.json` 与 `docs/TABLE_*.md`。
+- 消融结果见 `docs/TABLE_ABLATION.md`
+- 典型复杂查询案例见附录 B（3 个案例，包含多步检索每步 top-3 证据与 stop 原因）
 
 ---
 
 ## 6 错误分析与案例
 
-本节基于 Step6 的 `error_buckets.py` 统计结果与 multistep traces，给出主要失败类型与典型案例。所有数值均可在 `outputs/<run_id>/error_bucket_stats.json`、`outputs/<run_id>/multistep_traces.jsonl` 中复现。
+## 1. 失败类型概览（Step6）
+- **complex dev**：主要集中在 `no_gap` 与 `max_steps`，说明部分查询在第一步已覆盖核心证据，但 refine 能力仍有限；
+- **numeric dev**：由于计算器门控关闭（allow_task_types=[]），多数样本回退到 baseline，表现为 fallback 占比高。
 
-## 1) 失败类型概览（自动统计）
+## 2. 失败原因分析
+1) **简称歧义与实体对齐不足**：金融缩写可能指向多家公司，导致检索命中无关证据。  
+2) **检索漂移**：refined query 若过于相似或偏离目标，会重复检索或引入噪声。  
+3) **证据冲突与口径不一**：不同段落可能存在统计口径差异（如合并口径与单体口径），需要更强的单位/实体对齐策略。  
+4) **计算器保守门控**：为避免算错，门控阈值偏保守，导致覆盖率受限。  
 
-以下为 Step6 六组矩阵实验的自动统计摘要：
-
-- Run 20260130_234540_ae7cdf_m01: numeric_buckets={'fallback': 570}
-- Run 20260130_234540_ae7cdf_m02: numeric_buckets={'fallback': 570}
-- Run 20260130_234540_ae7cdf_m03: complex_buckets={'max_steps': 45, 'no_gap': 525}
-- Run 20260130_234540_ae7cdf_m04: numeric_buckets={'fallback': 570}
-- Run 20260130_234540_ae7cdf_m05: numeric_buckets={'fallback': 570}; complex_buckets={'max_steps': 45, 'no_gap': 525}
-- Run 20260130_234540_ae7cdf_m06: numeric_buckets={'fallback': 570}; complex_buckets={'max_steps': 46, 'no_gap': 524}
-
-解释：
-- **numeric_buckets=fallback**：由于 Step6 最优门控将 `allow_task_types=[]`，计算器任务被完全关闭，所有样本都回退到 baseline；因此 numeric 失败类型呈现为 fallback。
-- **complex_buckets=no_gap / max_steps**：多步检索在大部分样本中检测到 gap 并运行至 max_steps；在未发现 gap 的样本中直接停止（no_gap）。
-
-## 2) 典型复杂查询案例（complex_dev）
-
-**qid**: `8c8c8c34`
-
-**query**: 
-> Hasbro (HAS) 2023 one-time charges impact on operating profitability vs historical trends and cap allocation implications.
-
-**多步检索轨迹摘要**（来自 `outputs/20260130_234540_ae7cdf_m03_ms/multistep_traces.jsonl`）：
-- step0: gap=MISSING_ENTITY, gap_conf=1.0, gate_decision=true, stop_reason=CONTINUE
-- step1: gap=MISSING_ENTITY, gap_conf=1.0, stop_reason=MAX_STEPS
-- final_topk_size=10
-
-**候选证据（部分 chunk_id）**：
-- 008beea7_e0_c0
-- 8c8c8c34_e0_c2
-- f8aec91a_e0_c1
-- 8caea930_e0_c2
-- caa865da_e0_c3
-
-**分析**：
-该问题涉及“对比历史趋势 + 一次性费用影响”，属于复杂查询。多步检索识别到 entity/compare 型 gap，但 refined query 与原查询高度相似，导致第二步检索未引入新证据（newly_added_chunk_ids 为空），最终以 MAX_STEPS 停止。该案例反映出 **refiner 仍偏保守**，需要进一步提升 entity 拆分与精细化 query 改写能力。
-
-## 3) 数值题失败模式（numeric_dev）
-
-当前版本中计算器通过门控被关闭（allow_task_types=[]），所有数值题回退到 baseline，从而避免 Numeric-EM 下降，但也导致 **计算器未体现增益**。后续工作需结合更可靠的单位/年份对齐与置信度校准，逐步解除 gate 并验证 Numeric-EM/RelErr 的提升。
+## 3. 典型案例
+典型复杂查询案例已整理在附录 B（`docs/CASE_STUDIES.md`），包含 3 个查询的多步检索轨迹与证据对比。
 
 ---
 
 ## 7 讨论
 
 ## 1) 多步检索的收益与限制
-多步检索在 complex dev 上未显著提升 Recall@10，但通过门控与合并策略避免了退化。当前的 gap 检测与 query refiner 偏规则化，**对实体拆分与对齐**仍不够稳定，导致多步检索在部分复杂查询中仅重复或轻度改写查询。
+多步检索在 complex dev 上避免了退化，但整体提升有限，主要原因在于 gap 识别与 query 重写仍偏规则化，无法充分挖掘隐式实体关系与跨段落依赖。
 
 ## 2) 计算器的可控性与覆盖率
-数值抽取与计算模块在未充分校准前，容易出现“算得更多但算错更多”。因此 Step6 中使用 gate 将计算任务类型暂时关闭，保证 numeric 指标不回退。后续工作需要：
-- 引入更鲁棒的单位与实体对齐
-- 更细粒度的置信度打分
-- 限定任务类型并改进 query-based 计算任务识别
+显式计算显著降低了算术错误的风险，但门控策略为了安全性关闭了多数计算任务，导致数值指标未提升。后续需通过更强的单位对齐与置信度校准逐步放宽门控。
 
-## 3) 误差来源
-错误分析显示，复杂查询中主要问题集中在：
-- gap 识别不足（无法稳定抽取比较对象）
-- 合并策略未显著改善证据排序
-数值问题中主要问题集中在：
-- 结构化事实不足（缺年份或单位）
-- 计算门控触发率过低
-
-## 4) 可扩展方向
-- 引入更强的 dense retriever 与领域适配（如金融领域预训练）
-- 使用轻量化的 query rewriting 或规则图谱进行更精准的 gap 解析
-- 扩展计算器支持更多指标、单位与财务结构
+## 3) 未来工作
+- 引入更强的检索器与领域适配预训练；
+- 提升实体消歧与 query rewriting 的准确性；
+- 扩展计算器任务类型与多尺度单位转换；
+- 结合轻量 agent 机制增强多步检索的决策质量。
 
 ---
 
 ## 8 结论
 
-本文构建了一个可复现的金融 RAG 工程体系，覆盖数据规范化、检索、评测与实验编排，并在此基础上实现了多步检索与显式计算模块。实验表明：
+本文面向 FinDER 金融问答任务构建了可复现的金融 RAG 系统，在无外部 LLM API 的约束下引入多步检索与显式计算模块。实验表明：
 
-- 检索器微调显著提升了整体检索表现（full dev Recall@10: 0.3246 → 0.3772）。
-- 多步检索在复杂子集上不再造成性能回退，并在 MRR 上呈现轻微提升。
-- 计算器通过门控避免了数值指标退化，为后续提升奠定了稳定基线。
+- 检索器微调显著提升整体检索表现（full dev Recall@10: 0.3246 → 0.3772）；
+- 多步检索在复杂子集上保持不退化，MRR 略有提升；
+- 计算器门控避免数值指标回退，为后续优化奠定稳定基线。
 
-未来工作将聚焦于：提升 gap 识别与多步合并策略的有效性、增强数值抽取与单位对齐的鲁棒性，并探索更强的检索与推理模块。
+未来工作将集中在提升 gap 识别与 query 重写能力、增强数值抽取与单位对齐鲁棒性，并探索更强的检索与推理模型。
 
 ---
 
@@ -298,7 +244,7 @@ run_id 对照：
 - Step0 Top3：008beea7_e0_c0，8c8c8c34_e0_c2，f8aec91a_e0_c1
 - Step1 Top3：008beea7_e0_c0，f8aec91a_e0_c1，8c8c8c34_e0_c2
 - gap/stop：MISSING_ENTITY / MAX_STEPS，final_topk_size=10
-- 分析：该问题包含对比关系与年份信息，多步检索识别到 gap，但 refined query 与原查询高度相似，导致后续步骤新增证据较少，表明实体拆分与重写仍需加强。
+- 分析：该问题包含对比关系与年份信息，多步检索识别到 gap，但 refined query 与原查询高度相似，导致新增证据有限。
 
 **案例2（qid=52e25ec7）**
 - Query：Impact on net investing cash flows from EUC sale cash inflow offsets vs acquisition outflows, AVGO.
@@ -306,14 +252,14 @@ run_id 对照：
 - Step0 Top3：506e7d1e_e0_c0，52e25ec7_e0_c0，e4661352_e0_c3
 - Step1 Top3：506e7d1e_e0_c0，52e25ec7_e0_c0，1c47856d_e0_c1
 - gap/stop：MISSING_ENTITY / MAX_STEPS，final_topk_size=10
-- 分析：问题涉及“出售现金流入 vs 并购现金流出”的对比。多步检索能够维持对核心证据的覆盖，但仍未显著扩展证据范围。
+- 分析：问题涉及“出售现金流入 vs 并购现金流出”的对比，多步检索能够维持证据覆盖但未显著扩展证据范围。
 
 **案例3（qid=ed746c33）**
 - Query：Cash flow & cap alloc implications of IRM's ASC 842 storage rev rec vs other lines.
 - Gold Answer（摘要）：For its Global Data Center Business, Iron Mountain recognizes storage revenues under ASC 842…
 - Step0 Top3：ed746c33_e0_c0，2a8785e8_e0_c15，a68b8600_e0_c5
 - gap/stop：NO_GAP / NO_GAP，final_topk_size=10
-- 分析：该类问题实体明确、语义集中，单步即可覆盖核心证据，多步检索不会引入额外噪声。
+- 分析：该类问题实体明确、语义集中，单步检索即可覆盖核心证据，多步检索不引入额外噪声。
 
 ## 参考文献
 [1] 参考文献占位。

@@ -1,49 +1,46 @@
 ﻿# 方法
 
-本文系统由四个核心模块组成：**查询理解**、**多步检索推理**、**证据整合与计算**、**答案生成**。整体流程如下：
+本文系统由四个核心模块构成：**查询理解**、**多步检索推理**、**证据整合与计算**、**答案生成**。系统采用流水线式数据流，模块间接口明确，便于复现与扩展。
 
-```mermaid
-flowchart TD
-  Q[Query] --> U[Query Understanding]
-  U --> R1[Step-1 Retrieval]
-  R1 --> G[Gap Detector]
-  G -->|gap & gate| Rn[Refined Query Retrieval]
-  Rn --> M[Merge & Rank]
-  M --> C[Calculator (optional)]
-  C --> A[Template Answer]
-  G -->|no gap| M
+**图1 多步检索循环流程（示意）**
+
+```
+Query → Query Understanding → Step-1 Retrieval → Gap Detector
+  → (gap & gate) Refined Query Retrieval → Merge & Rank
+  → Calculator (optional) → Template Answer
 ```
 
-## 1. 查询理解
-通过规则与词典对查询进行初步解析，包括年份识别、比较关系识别、数值提示词识别等。该模块用于驱动多步检索的 gap 类型判断与后续计算任务类型预测。
+## 3.1 查询理解
+目标是将原始金融查询规范化，解决缩写、实体歧义与任务类型识别问题。可采用：
+- 规则与词典扩展（如将“YOY”扩展为“同比”）；
+- 金融领域 NER 与实体链接；
+- 轻量语义解析（不开启外部 API）。
 
-## 2. 多步检索推理
-多步检索在每一步使用当前查询进行检索，随后基于 gap 检测决定是否继续检索。核心机制包括：
+输出为规范化查询 $q'$ 与结构化槽位（实体、指标、年份、计算类型），作为多步检索的输入。
 
-- **Gap Detector**：检测年份缺失、实体缺失等信息缺口。
-- **Gate（门控）**：当 gap_conf < min_gap_conf 时，停止后续检索（避免 query 漂移）。
-- **Merge Strategy**：采用 `maxscore` 或 `step1_first` 合并策略对跨步候选排序与截断。
-- **Stop Criteria**：达到 max_steps 或无新增证据时停止。
+## 3.2 多步检索推理
+多步检索在第 $t$ 轮使用当前查询 $q_t$ 检索 top-$k$ 证据，基于 gap 检测决定是否继续：
 
-**Step6 最优多步配置（dev）**：
-- max_steps=2
-- top_k_each_step=10
-- novelty_threshold=0.0
-- stop_no_new_steps=1
-- merge_strategy=maxscore
-- gate.min_gap_conf=0.3
+- **Gap Detector**：判断是否缺失关键年份或比较对象；
+- **Gate**：若 $\text{gap\_conf} < \tau$，终止后续检索；
+- **Merge Strategy**：跨步候选去重并按 maxscore 或 step1	extunderscore first 排序；
+- **Stop Criteria**：达到 $T$ 或连续无新增证据时停止。
 
-## 3. 证据整合与计算
-该模块包含数值抽取与显式计算：
+关键超参数定义：
+- 检索轮数 $T$（max\_steps）
+- 每轮检索 top-$k$（top\_k\_each\_step）
+- 最终截断 top-$k_f$（top\_k\_final）
+- 门控阈值 $\tau$（min\_gap\_conf）
 
-- **抽取**：从证据文本中提取数值、单位、年份，并标注 inferred_year 与 confidence。
-- **计算器**：支持 YoY / 差值 / 占比 / 倍数等任务。对于单位不一致、年份缺失、候选冲突等情况进行拒算，并记录原因。
+**Step6 最优配置**：$T=2$，top\_k\_each\_step=10，merge=maxscore，novelty\_threshold=0.0，stop\_no\_new\_steps=1，$\tau=0.3$。
 
-**Step6 最优门控（numeric dev）**：
-- min_conf=0.2
-- allow_task_types=[]（在当前版本中关闭计算任务以避免 Numeric-EM 回退）
+## 3.3 证据整合与计算
+该模块从证据中抽取数值、年份、单位与实体，并执行显式计算（YoY/差值/占比/倍数）。核心约束：
+- 单位一致性校验；
+- 年份对齐要求；
+- 候选冲突时拒算并回退。
 
-## 4. 答案生成
-生成采用模板化策略：
-- 若计算器返回 `status=ok` 且通过门控，则输出结构化计算结果与简要解释；
-- 否则回退到 baseline 的占位式生成，并记录 fallback 原因。
+**Step6 最优门控**：min\_conf=0.2，allow\_task\_types=[]（当前版本以稳定性为先）。
+
+## 3.4 答案生成
+采用模板化生成：若计算器返回 status=ok 且通过门控，则输出结构化结果与解释；否则回退基线答案，并记录 fallback 原因以支持审计。
