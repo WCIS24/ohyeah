@@ -156,6 +156,26 @@ python scripts\run_matrix_step6.py --base-config configs\step6_base.yaml --matri
 python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 ```
 
+## Step7 Paper Draft
+
+```powershell
+# 0) ensure tables are up to date
+python scripts\make_tables.py --experiments configs\step6_experiments.yaml
+
+# 1) check error analysis summaries
+python scripts\error_buckets.py --config configs\step6_experiments.yaml
+
+# 2) draft chapters are under docs/
+# docs/INTRODUCTION.md
+# docs/RELATED.md
+# docs/METHOD.md
+# docs/EXPERIMENT.md
+# docs/RESULTS.md
+# docs/ERROR_ANALYSIS.md
+# docs/DISCUSSION.md
+# docs/CONCLUSION.md
+```
+
 ## FAISS note
 
 - The retriever tries to use FAISS for dense indexing when available.
