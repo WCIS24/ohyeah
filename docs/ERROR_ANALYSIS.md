@@ -1,6 +1,7 @@
 ﻿# 错误分析与案例
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## 1. 失败类型概览（Step6）
 - **complex dev**：主要集中在 `no_gap` 与 `max_steps`，说明部分查询在第一步已覆盖核心证据，但 refine 能力仍有限；
 - **numeric dev**：由于计算器门控关闭（allow_task_types=[]），多数样本回退到 baseline，表现为 fallback 占比高。
@@ -14,6 +15,8 @@
 ## 3. 典型案例
 典型复杂查询案例已整理在附录 B（`docs/CASE_STUDIES.md`），包含 3 个查询的多步检索轨迹与证据对比。
 =======
+=======
+>>>>>>> parent of 0b43bdb (Step6 align sweeps and tables with calc updates)
 ## Run 20260130_014940_21aa62_m03
 - numeric_buckets: {}
 - complex_buckets: {'max_steps': 45, 'no_gap': 525}
