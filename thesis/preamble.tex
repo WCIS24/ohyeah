@@ -1,0 +1,59 @@
+﻿\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{enumitem}
+
+% 页面设置
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+% 字体设置（可按学校环境替换）
+\setmainfont{Times New Roman}
+\setCJKmainfont{SimSun}       % 宋体
+\setCJKsansfont{SimHei}       % 黑体
+\setCJKfamilyfont{zhongsong}{STZhongsong} % 华文中宋（若无可替换）
+
+% 行距与缩进
+\setstretch{1.5}
+\setlength{\parindent}{2em}
+\raggedright
+
+% 脚注字号
+\renewcommand\footnotesize{\zihao{-5}}
+
+% 章节标题格式
+\ctexset{
+  chapter = {
+    format=\centering\heiti\zihao{-2},
+    name = {第,章},
+    number = \chinese{chapter},
+    beforeskip = 1em,
+    afterskip = 1em
+  },
+  section = {
+    format=\heiti\zihao{4},
+    beforeskip=1em,
+    afterskip=0.5em
+  },
+  subsection = {
+    format=\heiti\zihao{-4},
+    beforeskip=0.8em,
+    afterskip=0.4em
+  }
+}
+
+% 表题/图题格式
+\captionsetup[table]{labelfont={bf},textfont={bf},labelsep=space}
+\captionsetup[figure]{labelfont={bf},textfont={bf},labelsep=space}
+
+% 表格行距
+\renewcommand{\arraystretch}{1.2}
+
+% 自定义命令
+\newcommand{\TODO}{\textbf{【TODO】}}

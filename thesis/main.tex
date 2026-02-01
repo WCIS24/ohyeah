@@ -1,0 +1,51 @@
+﻿\documentclass[UTF8,openany]{ctexrep}
+
+\input{preamble}
+
+\begin{document}
+
+% 封面
+\input{sections/cover}
+\cleardoublepage
+
+% 原创性声明
+\input{sections/statement_originality}
+\cleardoublepage
+
+% 版权使用授权书
+\input{sections/authorization}
+\cleardoublepage
+
+% 中文摘要
+\input{sections/abstract_cn}
+\cleardoublepage
+
+% 英文摘要
+\input{sections/abstract_en}
+\cleardoublepage
+
+% 目录
+\input{sections/toc}
+\cleardoublepage
+
+% 正文
+\mainmatter
+\input{chapters/ch01_introduction}
+\input{chapters/ch02_related_work}
+\input{chapters/ch03_method}
+\input{chapters/ch04_experiments}
+\input{chapters/ch05_conclusion}
+
+% 参考文献
+\cleardoublepage
+\input{backmatter/references}
+
+% 附录
+\cleardoublepage
+\input{backmatter/appendix}
+
+% 致谢
+\cleardoublepage
+\input{backmatter/acknowledgements}
+
+\end{document}
