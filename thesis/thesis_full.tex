@@ -1,6 +1,6 @@
 \documentclass[UTF8,openany]{ctexrep}
 
-﻿\usepackage{fontspec}
+\usepackage{fontspec}
 \usepackage{xeCJK}
 \usepackage{setspace}
 \usepackage{geometry}
@@ -62,7 +62,7 @@
 
 \begin{document}
 
-﻿\thispagestyle{empty}
+\thispagestyle{empty}
 \begin{center}
 {\CJKfamily{zhongsong}\zihao{-0}\bfseries <论文题目（华文中宋 小初号 加粗）>}\\[2em]
 \end{center}
@@ -79,7 +79,7 @@
 
 \cleardoublepage
 
-﻿\thispagestyle{empty}
+\thispagestyle{empty}
 \begin{center}
 {\heiti\zihao{-2}\bfseries 学位论文原创性声明}
 \end{center}
@@ -95,7 +95,7 @@
 
 \cleardoublepage
 
-﻿\thispagestyle{empty}
+\thispagestyle{empty}
 \begin{center}
 {\heiti\zihao{-2}\bfseries 学位论文版权使用授权书}
 \end{center}
@@ -111,7 +111,7 @@
 
 \cleardoublepage
 
-﻿\chapter*{摘要}
+\chapter*{摘要}
 {\songti\zihao{-4}
 金融问答场景中的复杂查询往往涉及多年份、多实体与显式数值计算，传统单步检索 + 占位式生成在复杂问题上容易出现证据覆盖不足与算术错误。本文面向 FinDER（金融领域专家检索）数据集构建可复现的金融 RAG 系统，在无外部 LLM API 的约束下引入规则驱动的多步检索与显式计算器，并通过门控与系统化调参保证性能稳定。实验表明：检索器微调显著提升整体检索表现（full dev Recall@10: 0.3246→0.3772）；多步检索在复杂子集上保持不退化且 MRR 略有提升；计算器门控避免数值指标回退，为后续提升奠定稳定基线。所有实验产出与配置均可在 outputs/ 中追溯与复现。
 }
@@ -121,7 +121,7 @@
 
 \cleardoublepage
 
-﻿\chapter*{Abstract}
+\chapter*{Abstract}
 {\setmainfont{Times New Roman}\zihao{-4}
 Complex financial queries often involve multiple years, entities, and explicit numerical reasoning. Conventional single-step retrieval with template generation tends to suffer from insufficient evidence coverage and arithmetic errors. This thesis builds a reproducible financial RAG system on the FinDER dataset without external LLM APIs, introducing rule-based multi-step retrieval and an explicit calculator with gating. Results show that retriever fine-tuning improves overall retrieval performance (full dev Recall@10: 0.3246→0.3772); multi-step retrieval remains non-degrading on the complex subset with a slight MRR gain; and calculator gating prevents numeric metric regression, providing a stable baseline for future improvement. All artifacts are traceable under outputs/.
 }
@@ -131,14 +131,14 @@ Complex financial queries often involve multiple years, entities, and explicit n
 
 \cleardoublepage
 
-﻿\renewcommand{\contentsname}{目录}
+\renewcommand{\contentsname}{目录}
 \tableofcontents
 
 \cleardoublepage
 
 \mainmatter
 
-﻿\cleardoublepage
+\cleardoublepage
 \chapter{绪论}
 
 \section{研究背景与动机}
@@ -157,7 +157,7 @@ Complex financial queries often involve multiple years, entities, and explicit n
   \item 基于 Step6 的系统调参，输出 full dev / complex dev / numeric dev 的对照结果与误差分析。
 \end{itemize}
 
-﻿\cleardoublepage
+\cleardoublepage
 \chapter{相关工作}
 
 \section{金融问答与金融文本理解}
@@ -172,7 +172,7 @@ RAG 将检索与生成结合，评测工作关注稀疏/稠密/混合检索组�
 \section{智能化 RAG（Agentic RAG）}
 Agentic RAG 通过规划与工具调用提升推理能力，但在成本、可控性与可复现性方面仍存在现实约束。本文采用规则化多步检索以保证稳定性。
 
-﻿\cleardoublepage
+\cleardoublepage
 \chapter{方法}
 
 \section{系统总体架构}
@@ -245,7 +245,7 @@ s_{hybrid}=\alpha\tilde{s}_{bm25}+(1-\alpha)\tilde{s}_{dense}
 
 所有脚本均以 YAML 配置驱动，并在输出目录中写入解析后的 \texttt{config.resolved.yaml} 以记录最终参数。
 
-﻿\cleardoublepage
+\cleardoublepage
 \chapter{实验设置与结果分析}
 
 \section{数据集与划分}
@@ -364,7 +364,7 @@ python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 
 每次运行都会在 \texttt{outputs/<run\_id>/} 写入配置快照、日志、指标与中间产物，支持完整追溯与复现。
 
-﻿\cleardoublepage
+\cleardoublepage
 \chapter{结论与展望}
 
 \section{结论}
@@ -387,7 +387,7 @@ python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 \end{itemize}
 
 \cleardoublepage
-﻿\chapter*{参考文献}
+\chapter*{参考文献}
 \addcontentsline{toc}{chapter}{参考文献}
 
 \begin{thebibliography}{99}
@@ -395,7 +395,7 @@ python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 \end{thebibliography}
 
 \cleardoublepage
-﻿\chapter*{附录}
+\chapter*{附录}
 \addcontentsline{toc}{chapter}{附录}
 
 \section*{附录A 复现清单}
@@ -415,7 +415,7 @@ python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 \end{itemize}
 
 \cleardoublepage
-﻿\chapter*{致谢}
+\chapter*{致谢}
 \addcontentsline{toc}{chapter}{致谢}
 
 \TODO{请补充致谢内容，例如对导师、同学和家人的感谢。}

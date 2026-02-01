@@ -11,5 +11,5 @@ objective:
   mode: max
 constraint:
   metric: retrieval_full.recall@10
-  baseline_metrics_path: outputs/step6_baseline_postft_v3/summary.json
+  baseline_metrics_path: outputs/step6_baseline_postft/summary.json
   min_delta: -0.01
