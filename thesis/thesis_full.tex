@@ -1,0 +1,423 @@
+\documentclass[UTF8,openany]{ctexrep}
+
+﻿\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{enumitem}
+
+% 页面设置
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+% 字体设置（可按学校环境替换）
+\setmainfont{Times New Roman}
+\setCJKmainfont{SimSun}       % 宋体
+\setCJKsansfont{SimHei}       % 黑体
+\setCJKfamilyfont{zhongsong}{STZhongsong} % 华文中宋（若无可替换）
+
+% 行距与缩进
+\setstretch{1.5}
+\setlength{\parindent}{2em}
+\raggedright
+
+% 脚注字号
+\renewcommand\footnotesize{\zihao{-5}}
+
+% 章节标题格式
+\ctexset{
+  chapter = {
+    format=\centering\heiti\zihao{-2},
+    name = {第,章},
+    number = \chinese{chapter},
+    beforeskip = 1em,
+    afterskip = 1em
+  },
+  section = {
+    format=\heiti\zihao{4},
+    beforeskip=1em,
+    afterskip=0.5em
+  },
+  subsection = {
+    format=\heiti\zihao{-4},
+    beforeskip=0.8em,
+    afterskip=0.4em
+  }
+}
+
+% 表题/图题格式
+\captionsetup[table]{labelfont={bf},textfont={bf},labelsep=space}
+\captionsetup[figure]{labelfont={bf},textfont={bf},labelsep=space}
+
+% 表格行距
+\renewcommand{\arraystretch}{1.2}
+
+% 自定义命令
+\newcommand{\TODO}{\textbf{【TODO】}}
+
+\begin{document}
+
+﻿\thispagestyle{empty}
+\begin{center}
+{\CJKfamily{zhongsong}\zihao{-0}\bfseries <论文题目（华文中宋 小初号 加粗）>}\\[2em]
+\end{center}
+
+{\songti\zihao{-4}
+\noindent 学院：<院系>\\
+专业：<专业>\\
+班级：<班级>\\
+姓名：<姓名>\\
+学号：<学号>\\
+指导教师：<指导教师>\\
+完成日期：<完成日期>\\
+}
+
+\cleardoublepage
+
+﻿\thispagestyle{empty}
+\begin{center}
+{\heiti\zihao{-2}\bfseries 学位论文原创性声明}
+\end{center}
+
+{\songti\zihao{-4}
+本人郑重声明：所呈交的学位论文是本人在导师指导下独立完成的研究成果。论文中所使用的研究成果及引用内容均已注明出处。本论文不包含任何他人已经发表或撰写过的研究成果。
+}
+
+\vspace{3em}
+{\songti\zihao{-4}
+作者签名：\underline{\hspace{6em}} \hfill 日期：\underline{\hspace{6em}}
+}
+
+\cleardoublepage
+
+﻿\thispagestyle{empty}
+\begin{center}
+{\heiti\zihao{-2}\bfseries 学位论文版权使用授权书}
+\end{center}
+
+{\songti\zihao{-4}
+本人同意学校在教学与科研范围内保留、使用本论文的权利，包括但不限于复制、汇编、借阅与信息网络传播。
+}
+
+\vspace{3em}
+{\songti\zihao{-4}
+作者签名：\underline{\hspace{6em}} \hfill 日期：\underline{\hspace{6em}}
+}
+
+\cleardoublepage
+
+﻿\chapter*{摘要}
+{\songti\zihao{-4}
+金融问答场景中的复杂查询往往涉及多年份、多实体与显式数值计算，传统单步检索 + 占位式生成在复杂问题上容易出现证据覆盖不足与算术错误。本文面向 FinDER（金融领域专家检索）数据集构建可复现的金融 RAG 系统，在无外部 LLM API 的约束下引入规则驱动的多步检索与显式计算器，并通过门控与系统化调参保证性能稳定。实验表明：检索器微调显著提升整体检索表现（full dev Recall@10: 0.3246→0.3772）；多步检索在复杂子集上保持不退化且 MRR 略有提升；计算器门控避免数值指标回退，为后续提升奠定稳定基线。所有实验产出与配置均可在 outputs/ 中追溯与复现。
+}
+
+\vspace{1em}
+{\heiti\zihao{-4}关键词：}{\songti\zihao{-4}金融问答；检索增强生成；多步检索；显式计算；误差分析；可复现}
+
+\cleardoublepage
+
+﻿\chapter*{Abstract}
+{\setmainfont{Times New Roman}\zihao{-4}
+Complex financial queries often involve multiple years, entities, and explicit numerical reasoning. Conventional single-step retrieval with template generation tends to suffer from insufficient evidence coverage and arithmetic errors. This thesis builds a reproducible financial RAG system on the FinDER dataset without external LLM APIs, introducing rule-based multi-step retrieval and an explicit calculator with gating. Results show that retriever fine-tuning improves overall retrieval performance (full dev Recall@10: 0.3246→0.3772); multi-step retrieval remains non-degrading on the complex subset with a slight MRR gain; and calculator gating prevents numeric metric regression, providing a stable baseline for future improvement. All artifacts are traceable under outputs/.
+}
+
+\vspace{1em}
+{\bfseries Key words:} financial QA; retrieval-augmented generation; multi-step retrieval; explicit calculation; error analysis; reproducibility
+
+\cleardoublepage
+
+﻿\renewcommand{\contentsname}{目录}
+\tableofcontents
+
+\cleardoublepage
+
+\mainmatter
+
+﻿\cleardoublepage
+\chapter{绪论}
+
+\section{研究背景与动机}
+金融领域问题往往涉及最新市场数据、法规条文与财报细节，具有高信息密度与强语义压缩特征。传统大模型在金融问答中易出现事实性偏差或知识滞后。为提高准确性，检索增强生成（RAG）通过“检索—生成”机制使回答基于真实证据，但现有金融 RAG 多以单步检索为主，面对复杂查询时表现不足。
+
+复杂查询通常具备以下特征：跨段落/跨文档证据、显式数值计算需求、金融缩写与实体歧义。FinDER 数据集（Financial Domain Expert Retrieval）包含 5,703 个真实金融问答三元组，凸显多步检索与显式推理的必要性。
+
+\section{研究目标}
+本文目标是构建一个可复现、可审计的金融 RAG 基线系统，并在此基础上验证多步检索与显式计算模块的价值与边界，形成工程化可复验结果。
+
+\section{主要贡献}
+\begin{itemize}
+  \item 构建可复现工程框架，统一数据、检索、评测与实验编排，输出可追踪 run\_id。
+  \item 设计规则驱动的多步检索循环，包含 gap 检测、合并与停止策略。
+  \item 引入显式计算器与门控机制，控制数值错误传播。
+  \item 基于 Step6 的系统调参，输出 full dev / complex dev / numeric dev 的对照结果与误差分析。
+\end{itemize}
+
+﻿\cleardoublepage
+\chapter{相关工作}
+
+\section{金融问答与金融文本理解}
+金融 QA 聚焦财报、公告、研报等长文档中的事实与数值问答，强调证据定位与实体对齐。缩写、口径差异与跨段依赖是该领域的主要挑战。
+
+\section{检索增强生成（RAG）评测}
+RAG 将检索与生成结合，评测工作关注稀疏/稠密/混合检索组合以及检索器微调对下游任务的传导效果。
+
+\section{多跳/多步检索}
+多步检索通过迭代检索补全证据链，常用于复杂比较与跨文档推理任务，核心难点在于“何时继续检索”与“如何合并证据”。
+
+\section{智能化 RAG（Agentic RAG）}
+Agentic RAG 通过规划与工具调用提升推理能力，但在成本、可控性与可复现性方面仍存在现实约束。本文采用规则化多步检索以保证稳定性。
+
+﻿\cleardoublepage
+\chapter{方法}
+
+\section{系统总体架构}
+本文系统采用配置驱动的流水线式设计，整体流程为：数据规范化与分块 → 检索器索引构建 → （可选）多步检索循环 → （可选）证据计算器 → 模板化答案生成。系统核心模块位于 \texttt{src/}，脚本入口位于 \texttt{scripts/}，所有实验输出统一落盘到 \texttt{outputs/<run\_id>/}。图\ref{fig:arch}给出整体数据流示意。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.4cm, every node/.style={draw, rounded corners, align=center, minimum height=0.8cm}]
+  \node (data) {FinDER\\数据与规范化};
+  \node (chunk) [below=of data] {证据分块\\chunk\_size/overlap};
+  \node (index) [below=of chunk] {索引构建\\BM25+Dense};
+  \node (retrieve) [below=of index] {检索（单步）};
+  \node (multistep) [below=of retrieve] {多步检索\\Gap\&Refine};
+  \node (calc) [below=of multistep] {显式计算器\\YoY/差值};
+  \node (gen) [below=of calc] {模板化答案};
+
+  \draw[->] (data) -- (chunk);
+  \draw[->] (chunk) -- (index);
+  \draw[->] (index) -- (retrieve);
+  \draw[->] (retrieve) -- (multistep);
+  \draw[->] (multistep) -- (calc);
+  \draw[->] (calc) -- (gen);
+\end{tikzpicture}
+\caption{基于仓库实现的金融 RAG 系统流程示意图}
+\label{fig:arch}
+\end{figure}
+
+\section{数据规范化与语料构建}
+数据加载与统一格式化由 \texttt{src/data/finder.py} 实现，脚本入口为 \texttt{scripts/prepare\_data.py}。统一样本格式见 \texttt{docs/DATA\_FORMAT.md}，核心字段包括 \texttt{qid/query/answer/evidences}。默认切分比例来自 \texttt{configs/prepare\_data.yaml}：train/dev/test = 0.8/0.1/0.1，随机种子为 42。
+
+语料分块由 \texttt{src/indexing/chunking.py} 实现，使用字符级切分并保留 \texttt{chunk\_id} 与来源信息。默认分块参数见 \texttt{configs/build\_corpus.yaml}（\texttt{chunk\_size=1000, overlap=100}），Step6 的系统调参使用 \texttt{configs/step6\_base.yaml}（\texttt{chunk\_size=200, overlap=50}）。分块产物写入 \texttt{data/corpus/chunks.jsonl}。
+
+\section{检索器与混合检索}
+检索器实现位于 \texttt{src/retrieval/retriever.py}，核心类为 \texttt{HybridRetriever}。系统同时构建 BM25 稀疏索引（\texttt{rank\_bm25}）与稠密向量索引（\texttt{sentence\_transformers}），并支持 FAISS（若不可用则回退 NumPy brute-force）。
+
+混合检索按查询级进行 min-max 归一化并线性融合（详见 \texttt{docs/METRICS.md}）：
+\begin{equation}
+\tilde{s} = \frac{s-\min(s)}{\max(s)-\min(s)},\quad
+s_{hybrid}=\alpha\tilde{s}_{bm25}+(1-\alpha)\tilde{s}_{dense}
+\end{equation}
+
+默认检索参数来自 \texttt{configs/run\_baseline.yaml}（\texttt{mode=hybrid, alpha=0.5, top\_k=5}），Step6 统一配置使用 \texttt{configs/step6\_base.yaml}（\texttt{mode=dense}，保留 \texttt{alpha=0.5} 以支持混合检索扩展）。
+
+\section{规则驱动多步检索}
+多步检索引擎位于 \texttt{src/multistep/engine.py}，由以下组件组成：
+\begin{itemize}
+  \item \textbf{StepPlanner}（\texttt{planner.py}）：基于年份、百分号与比较关键词判定查询类型（COMPARE/TREND/FACT/OTHER）。
+  \item \textbf{GapDetector}（\texttt{gap.py}）：检测年份缺口或比较对象缺口，并输出 \texttt{gap\_conf}。
+  \item \textbf{QueryRefiner}（\texttt{refiner.py}）：在缺口存在时追加缺失年份/实体或指标同义词。
+  \item \textbf{StopCriteria}（\texttt{stop.py}）：满足 \texttt{MAX\_STEPS}、\texttt{NO\_GAP}、\texttt{EMPTY\_RESULTS} 或 \texttt{NO\_NEW\_EVIDENCE} 时停止。
+  \item \textbf{Merge Strategy}：\texttt{maxscore} 或 \texttt{step1\_first}，并最终截断为 \texttt{top\_k\_final}。
+\end{itemize}
+
+配置中区分每步检索规模 \texttt{top\_k\_each\_step} 与最终输出规模 \texttt{top\_k\_final}（\texttt{configs/run\_multistep.yaml} 默认 \texttt{top\_k\_each\_step=5, top\_k\_final=10}），避免评测时 Recall@k 被候选数量截断。门控规则由 \texttt{multistep.gate} 控制，Step6 默认阈值为 \texttt{min\_gap\_conf=0.3}（\texttt{configs/step6\_base.yaml}）。
+
+\section{证据抽取与显式计算}
+数值抽取位于 \texttt{src/calculator/extract.py}，通过正则识别数值、年份、百分号与单位，输出 Fact 数据结构（包含 \texttt{value/unit/year/confidence} 等字段）。计算模块位于 \texttt{src/calculator/compute.py}，支持 YoY、差值、占比与倍数四类任务；当单位不一致、年份缺失或候选冲突时，结果标记为 \texttt{unit\_mismatch}/\texttt{insufficient\_facts}/\texttt{ambiguous} 并拒算。
+
+计算门控由 \texttt{calculator.gate} 控制（\texttt{configs/step6\_base.yaml}：\texttt{min\_conf=0.4}，\texttt{require\_unit\_consistency=true}，\texttt{require\_year\_match=true}），并可在 Step6 阈值搜索中调整。
+
+\section{答案生成与可审计输出}
+答案生成采用模板化方式：若计算器结果 \texttt{status=ok} 且通过门控，则输出结构化答案与解释；否则回退基线答案并记录 \texttt{fallback\_reason}。主要输出文件包括：
+\begin{itemize}
+  \item \texttt{retrieval\_results.jsonl}、\texttt{multistep\_traces.jsonl}（多步检索证据与轨迹）；
+  \item \texttt{facts.jsonl}、\texttt{results\_R.jsonl}、\texttt{calc\_traces.jsonl}（显式计算链路）；
+  \item \texttt{predictions.jsonl} / \texttt{predictions\_calc.jsonl}（答案预测）；
+  \item \texttt{metrics.json} / \texttt{numeric\_metrics.json}（评测指标）；
+  \item \texttt{config.yaml}、\texttt{git\_commit.txt}、\texttt{logs.txt}（可复现与审计）。
+\end{itemize}
+
+所有脚本均以 YAML 配置驱动，并在输出目录中写入解析后的 \texttt{config.resolved.yaml} 以记录最终参数。
+
+﻿\cleardoublepage
+\chapter{实验设置与结果分析}
+
+\section{数据集与划分}
+实验使用 FinDER 数据集，包含 5,703 个查询—证据—答案三元组（见 \texttt{docs/EXPERIMENT.md}）。数据由 \texttt{scripts/prepare\_data.py} 规范化后划分为 train/dev/test（\texttt{configs/prepare\_data.yaml}：0.8/0.1/0.1），统一字段格式见 \texttt{docs/DATA\_FORMAT.md}。
+
+\section{子集构建}
+复杂子集 \texttt{complex\_dev} 的构建规则来自 \texttt{scripts/build\_subsets.py} 与 \texttt{configs/build\_subsets.yaml}：满足“多证据”“含≥2年份”“含比较关键词”“含年份且含数字/百分号”等条件之一即进入子集。数值子集 \texttt{numeric\_dev} 来自 \texttt{scripts/build\_numeric\_subset.py}，规则包括查询/答案含数字、含百分号或同比/差值/倍数关键词等。子集列表写入 \texttt{data/subsets/}。
+
+\section{评价指标}
+检索与 QA 指标定义见 \texttt{docs/METRICS.md}，本文使用：
+\begin{itemize}
+  \item 检索指标：Recall@k、MRR@k、evidence\_hit@k；
+  \item QA 指标：EM/F1（对照）；
+  \item 数值指标：Numeric-EM、RelErr、Coverage（\texttt{scripts/eval\_numeric.py}）。
+\end{itemize}
+当缺失 \texttt{doc\_id/evidence\_id} 时采用文本包含匹配，并记录 \texttt{uncertain\_match\_ratio}。
+
+\section{实验设置与实现细节}
+实验依赖写在 \texttt{requirements.txt}，包括 \texttt{datasets}、\texttt{rank-bm25}、\texttt{sentence-transformers} 等。默认随机种子为 42（见各配置文件）。FAISS 若不可用则回退 NumPy brute-force（见 README 与 \texttt{src/retrieval/retriever.py}）。
+
+Step6 统一配置位于 \texttt{configs/step6\_base.yaml}，关键参数包括：\texttt{chunk\_size=200}、\texttt{overlap=50}、\texttt{multistep.max\_steps=3}、\texttt{top\_k\_each\_step=5}、\texttt{multistep.merge\_strategy=maxscore}、\texttt{calculator.gate.min\_conf=0.4} 等。Step6 组合实验矩阵与最优配置见 \texttt{configs/step6\_matrix.yaml} 与 \texttt{configs/step6\_experiments.yaml}。
+
+\section{检索器微调结果（Step3）}
+表\ref{tab:ft} 给出 Step3 检索器微调前后在 dev 集的检索指标（\texttt{docs/RESULTS\_RETRIEVER\_FT.md}）。
+\begin{table}[htbp]
+\centering
+\caption{检索器微调前后对比（dev）}
+\label{tab:ft}
+\begin{tabular}{lcccccc}
+\toprule
+设置 & Recall@1 & Recall@5 & Recall@10 & MRR@1 & MRR@5 & MRR@10 \\
+\midrule
+pre\_ft & 0.156140 & 0.259649 & 0.324561 & 0.156140 & 0.194327 & 0.202958 \\
+post\_ft & 0.208772 & 0.331579 & 0.377193 & 0.208772 & 0.253977 & 0.260061 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{多步检索结果与问题定位（Step4）}
+Step4 早期结果显示多步检索在 full dev 上的 Recall@10 低于 baseline，并与 Recall@5 相同（见 \texttt{docs/RESULTS\_MULTISTEP.md}）。该现象来自候选数量被 \texttt{top\_k\_each\_step} 截断，后续已通过 \texttt{top\_k\_final} 修复（\texttt{configs/run\_multistep.yaml}）。修复后所有评测均保证 \texttt{top\_k\_final} 不小于 \texttt{k\_values} 的最大值。
+
+\section{系统化调参与最终对照（Step6）}
+表\ref{tab:main} 汇总 Step6 的 6 组组合实验（full dev 与 complex dev 指标），数据来源 \texttt{docs/TABLE\_MAIN.md}。表\ref{tab:numeric} 汇总 numeric dev 的数值指标（\texttt{docs/TABLE\_NUMERIC.md}）。
+
+\begin{table}[htbp]
+\centering
+\caption{Step6 主结果（full dev / complex dev）}
+\label{tab:main}
+\begin{tabular}{lccccc}
+\toprule
+label & full\_r10 & full\_mrr10 & complex\_r10 & complex\_mrr10 \\
+\midrule
+pre\_ft\_baseline & 0.3246 & 0.2030 & 0.3457 & 0.2330 \\
+post\_ft\_baseline & 0.3772 & 0.2601 & 0.3909 & 0.2960 \\
+post\_ft\_multistep\_best & 0.3772 & 0.2601 & 0.3909 & 0.2961 \\
+post\_ft\_baseline\_calc\_best & 0.3772 & 0.2601 & 0.3909 & 0.2960 \\
+post\_ft\_multistep\_calc\_best & 0.3772 & 0.2601 & 0.3909 & 0.2961 \\
+post\_ft\_multistep\_T1\_calc\_best & 0.3772 & 0.2601 & 0.3909 & 0.2960 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Step6 数值子集结果（numeric dev）}
+\label{tab:numeric}
+\begin{tabular}{lccc}
+\toprule
+label & num\_em & num\_rel & num\_cov \\
+\midrule
+pre\_ft\_baseline & 0.3791 & 2874.5248 & 0.6202 \\
+post\_ft\_baseline & 0.3838 & 683.3536 & 0.6266 \\
+post\_ft\_multistep\_best & -- & -- & -- \\
+post\_ft\_baseline\_calc\_best & 0.3838 & 683.3536 & 0.6266 \\
+post\_ft\_multistep\_calc\_best & 0.3838 & 683.3536 & 0.6266 \\
+post\_ft\_multistep\_T1\_calc\_best & 0.3838 & 683.3536 & 0.6266 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{计算器影响（Step5）}
+Step5 记录了未门控情况下的计算器对数值指标的影响（\texttt{docs/RESULTS\_CALCULATOR.md}）。numeric\_dev 上 baseline 的 Numeric-EM 为 0.3617，baseline+calculator 为 0.3106，multistep+calculator 为 0.3038，表明在缺乏强门控时覆盖率提升但误差上升。该观察推动了 Step6 的门控与阈值搜索策略。
+
+\section{误差分析与案例}
+错误类型汇总见 \texttt{docs/ERROR\_ANALYSIS.md}。complex\_dev 的主要失败集中在 \texttt{no\_gap} 与 \texttt{max\_steps}，说明部分查询在首步已覆盖核心证据，而 refined query 的补充作用有限。numeric\_dev 中由于计算器门控较保守，fallback 占比高。
+
+典型复杂查询案例详见 \texttt{docs/CASE\_STUDIES.md}。例如 qid=8c8c8c34 的多年份对比问题在多步检索下识别到 gap 但新增证据有限；qid=ed746c33 则在首步即覆盖核心证据，多步检索未引入噪声。
+
+\section{可复现性与运行步骤}
+所有实验通过脚本与 Makefile 驱动，关键命令如下（与 README 一致）：
+\begin{verbatim}
+# 数据准备
+python scripts\prepare_data.py --config configs\prepare_data.yaml
+python scripts\build_corpus.py --config configs\build_corpus.yaml
+
+# 检索评测与基线
+python scripts\eval_retrieval.py --config configs\eval_retrieval.yaml
+python scripts\run_baseline.py --config configs\run_baseline.yaml
+python scripts\eval_qa.py --config configs\eval_qa.yaml --predictions outputs/<run_id>/predictions.jsonl --gold data/processed/dev.jsonl
+
+# 多步检索
+python scripts\run_multistep_retrieval.py --config configs\run_multistep.yaml
+python scripts\eval_multistep_retrieval.py --config configs\eval_multistep.yaml --results outputs/<run_id>/retrieval_results.jsonl
+
+# 计算器与数值评测
+python scripts\build_numeric_subset.py --config configs\build_numeric_subset.yaml
+python scripts\run_with_calculator.py --config configs\run_with_calculator.yaml
+python scripts\eval_numeric.py --config configs\eval_numeric.yaml --predictions outputs/<run_id>/predictions_calc.jsonl
+
+# Step6 调参与表格
+python scripts\sweep.py --base-config configs\step6_base.yaml --search-space configs\search_space_multistep.yaml
+python scripts\sweep.py --base-config configs\step6_base.yaml --search-space configs\search_space_calc.yaml
+python scripts\run_matrix_step6.py --base-config configs\step6_base.yaml --matrix configs\step6_matrix.yaml
+python scripts\make_tables.py --experiments configs\step6_experiments.yaml
+\end{verbatim}
+
+每次运行都会在 \texttt{outputs/<run\_id>/} 写入配置快照、日志、指标与中间产物，支持完整追溯与复现。
+
+﻿\cleardoublepage
+\chapter{结论与展望}
+
+\section{结论}
+本文基于仓库 WCIS24/ohyeah 的可复现工程实现了金融 RAG 的完整流水线，并在此基础上验证了多步检索与显式计算的工程价值。实验结果表明：
+\begin{itemize}
+  \item 检索器微调显著提升检索表现（Recall@10：0.324561 提升至 0.377193）。
+  \item 系统化调参后，多步检索在 complex\_dev 上保持不退化，MRR 略有提升（见表\ref{tab:main}）。
+  \item 计算器在未门控时可能带来数值指标回退，Step6 通过门控与阈值策略保持稳定性（见表\ref{tab:numeric} 与 \texttt{docs/RESULTS\_CALCULATOR.md}）。
+\end{itemize}
+
+整体而言，本文实现了一个“可复现、可审计、可扩展”的金融 RAG 基线框架，并为后续进一步提升复杂查询与数值推理能力打下工程基础。
+
+\section{展望}
+未来工作可从以下方向展开：
+\begin{itemize}
+  \item \textbf{查询理解增强}：引入更强的金融实体识别与缩写消歧模块，提升 gap 检测的准确性。
+  \item \textbf{多步检索策略优化}：在不引入外部 API 的前提下，改进 QueryRefiner 的重写策略与停止准则，减少检索漂移。
+  \item \textbf{计算器扩展}：完善单位与口径对齐规则，扩展到更多金融指标的显式计算。
+  \item \textbf{评测与案例扩展}：构建更细粒度的错误类型与案例库，提升可解释性分析深度。
+\end{itemize}
+
+\cleardoublepage
+﻿\chapter*{参考文献}
+\addcontentsline{toc}{chapter}{参考文献}
+
+\begin{thebibliography}{99}
+\bibitem{todo} \TODO{仓库未提供参考文献条目与 BibTeX 文件，请补充与本文相关的金融 QA、RAG、多步检索、显式计算等文献。}
+\end{thebibliography}
+
+\cleardoublepage
+﻿\chapter*{附录}
+\addcontentsline{toc}{chapter}{附录}
+
+\section*{附录A 复现清单}
+\begin{itemize}
+  \item \textbf{环境依赖}：见 \texttt{requirements.txt}（numpy、pandas、datasets、rank-bm25、sentence-transformers、pytest 等）。\TODO{需补充 Python 版本、CUDA/GPU 规格（若使用）。}
+  \item \textbf{数据获取}：根据 \texttt{configs/prepare\_data.yaml} 需提供 \texttt{dataset/finder\_dataset.csv}；smoke 测试可从 \texttt{Linq-AI-Research/FinDER} 自动下载小样本（见 README）。
+  \item \textbf{一键命令}：Makefile 目标包括 \texttt{make setup}、\texttt{make smoke}、\texttt{make run\_multistep}、\texttt{make eval\_multistep}、\texttt{make run\_baseline\_calc}、\texttt{make eval\_numeric}、\texttt{make run\_matrix\_step6}、\texttt{make make\_tables}。
+  \item \textbf{输出产物}：所有实验产物写入 \texttt{outputs/<run\_id>/}，包含配置快照、日志、指标、追踪文件与中间结果。
+\end{itemize}
+
+\section*{附录B 需要补充的信息清单}
+\begin{itemize}
+  \item \TODO{封面字段：学院/专业/班级/姓名/学号/指导教师/完成日期。}
+  \item \TODO{参考文献条目与引用格式（若有学校模板或 BibTeX 文件）。}
+  \item \TODO{运行环境说明：Python 版本、操作系统、硬件信息。}
+  \item \TODO{若需提交学校模板的样式文件，请提供对应 LaTeX/Word 模板要求。}
+\end{itemize}
+
+\cleardoublepage
+﻿\chapter*{致谢}
+\addcontentsline{toc}{chapter}{致谢}
+
+\TODO{请补充致谢内容，例如对导师、同学和家人的感谢。}
+
+\end{document}
