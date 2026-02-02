@@ -2,6 +2,7 @@
 
 | ParagraphID | What it argues | Needed citations (placeholders) | Relation to our work | Risk if uncited | TODO to resolve |
 | --- | --- | --- | --- | --- | --- |
+| RW-0 | 章节标题与范围提示 | none | 结构提示 | 无 | 无 |
 | RW-2.1-1 | RAG 是证据可追溯的常见范式 | [CITE:TODO-rag-survey-2023] | 提供背景语境 | 背景无权威来源 | 补齐 RAG 综述/代表性论文 |
 | RW-2.1-2 | 金融 QA 与事实核验强调证据链 | [CITE:TODO-financial-qa-2023] | 强化任务场景 | 论断泛化 | 补齐金融 QA 代表性工作 |
 | RW-2.1-3 | 金融场景要求更高可解释性 | [CITE:TODO-financial-fact-verification-2024] | 说明定位动机 | 论断无证据 | 补齐金融事实核验论文 |
