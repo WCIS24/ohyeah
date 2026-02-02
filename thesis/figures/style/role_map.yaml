@@ -1,0 +1,65 @@
+roles:
+  baseline:
+    label: "Baseline"
+    color_key: "neutral"
+    linestyle: "--"
+    marker: "o"
+    hatch: "//"
+  retriever_ft:
+    label: "Retriever FT"
+    color_key: "accent2"
+    linestyle: "-."
+    marker: "D"
+    hatch: "\\\\"
+  multistep:
+    label: "Multi-step"
+    color_key: "primary"
+    linestyle: "-"
+    marker: "s"
+    hatch: "xx"
+  calculator:
+    label: "+Calculator"
+    color_key: "accent1"
+    linestyle: "-"
+    marker: "^"
+    hatch: ".."
+  multistep_calc:
+    label: "Multi-step + Calculator"
+    color_key: "accent3"
+    linestyle: "-"
+    marker: "v"
+    hatch: "++"
+  ablation_t1:
+    label: "Multi-step + Calculator (T1)"
+    color_key: "accent4"
+    linestyle: ":"
+    marker: "x"
+    hatch: "--"
+  oracle:
+    label: "Oracle"
+    color_key: "accent4"
+    linestyle: ":"
+    marker: "*"
+    hatch: "oo"
+
+role_order:
+  - baseline
+  - retriever_ft
+  - multistep
+  - calculator
+  - multistep_calc
+  - ablation_t1
+  - oracle
+
+aliases:
+  pre_ft_baseline: baseline
+  post_ft_baseline: retriever_ft
+  post_ft_multistep_best: multistep
+  post_ft_baseline_calc_best: calculator
+  post_ft_multistep_calc_best: multistep_calc
+  post_ft_multistep_T1_calc_best: ablation_t1
+  baseline: baseline
+  multistep: multistep
+  multistep_calc: multistep_calc
+  calc: calculator
+  calculator: calculator

@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: setup smoke test
+.PHONY: setup smoke test figures figures_all
 .PHONY: mine_negs train_retriever eval_retriever_pre eval_retriever_post build_subsets run_multistep eval_multistep
 .PHONY: build_numeric_subset extract_facts run_calculator run_baseline_calc run_multistep_calc eval_numeric
 .PHONY: validate_config sweep_multistep sweep_calc_threshold run_matrix_step6 make_tables
@@ -69,3 +69,11 @@ run_matrix_step6:
 
 make_tables:
 	$(PYTHON) scripts/make_tables.py --experiments configs/step6_experiments.yaml
+
+FIGURES_CONFIG ?= scripts/plot_config.yaml
+FIGURE_THEME ?= ThemeA
+figures:
+	$(PYTHON) scripts/plot_all.py --config $(FIGURES_CONFIG) --theme $(FIGURE_THEME)
+
+figures_all:
+	$(PYTHON) scripts/plot_all.py --config $(FIGURES_CONFIG) --all-themes

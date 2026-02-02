@@ -1,0 +1,68 @@
+output_root: thesis/figures
+style_dir: thesis/figures/style
+palettes_path: thesis/figures/style/palettes.yaml
+role_map_path: thesis/figures/style/role_map.yaml
+experiments_path: configs/step6_experiments.yaml
+data_root: outputs
+
+default_theme: ThemeA
+render_all_themes: false
+
+export_png: true
+png_dpi: 600
+
+figure_sizes:
+  wide: [6.2, 3.4]
+  medium: [4.8, 3.2]
+  narrow: [3.6, 2.8]
+
+figures:
+  main_results:
+    enabled: true
+    summary_filename: summary.json
+    table_digits: 4
+    columns:
+      - key: full_r10
+        label: "Full R@10"
+        higher_is_better: true
+      - key: full_mrr10
+        label: "Full MRR@10"
+        higher_is_better: true
+      - key: complex_r10
+        label: "Complex R@10"
+        higher_is_better: true
+      - key: complex_mrr10
+        label: "Complex MRR@10"
+        higher_is_better: true
+
+  recall_mrr_curves:
+    enabled: true
+    metrics_filename: metrics.json
+    k_values: [1, 5, 10]
+    use_groups: ["main"]
+    output_name: "recall_mrr_k"
+
+  delta_bar:
+    enabled: true
+    delta_filenames: ["delta_vs_baseline.json", "delta_vs_pre.json"]
+    metrics: ["recall@10", "mrr@10", "numeric_em", "coverage"]
+    output_name: "delta_bar"
+
+  ablation_breakdown:
+    enabled: true
+    group: ablation
+    metrics: ["full_r10", "full_mrr10", "complex_r10", "complex_mrr10"]
+    output_name: "ablation_breakdown"
+
+  numeric_errors:
+    enabled: true
+    run_id: null
+    per_query_filename: numeric_per_query.jsonl
+    output_name: "numeric_error_dist"
+
+  multistep_trace:
+    enabled: true
+    run_id: null
+    qid: null
+    trace_filename: multistep_traces.jsonl
+    output_name: "multistep_trace_case"
