@@ -1,0 +1,53 @@
+﻿thesis/
+  main.tex
+  preamble.tex
+  cover.tex
+  statement_originality.tex
+  authorization.tex
+  abstract_cn.tex
+  abstract_en.tex
+  toc.tex
+  ch01_introduction.tex
+  ch02_related_work.tex
+  ch03_method.tex
+  ch04_experiments.tex
+  ch05_conclusion.tex
+  references.tex
+  references.bib
+  appendix.tex
+  acknowledgements.tex
+  BUILD.md
+  figures/
+    FIGURE_CATALOG.md
+    figures_auto.tex
+    ThemeA/
+      figures/
+      tables/
+
+thesis_text/
+  phase0/
+  phase1/
+  phase2/
+  phase3/
+  phase4/
+  phase5/
+  phase6/
+  phase7/
+  phase8/
+  phase_fix/outputs_index.md
+
+docs/
+  data_stats.json
+  data_stats.md
+  multistep_design.md
+  calculator_design.md
+  repro_env_and_llm_dependency.md
+  TABLE_MAIN.md
+  TABLE_NUMERIC.md
+  TABLE_ABLATION.md
+
+scripts/
+  build_thesis.sh
+
+outputs/
+  <run_id>/
