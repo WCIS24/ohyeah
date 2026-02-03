@@ -1,0 +1,57 @@
+{
+  "source": {
+    "data_stats_path": "outputs/20260202_165254_c4b131/data_stats.json",
+    "subsets_stats_path": "outputs/20260202_165303_b04a7b/subsets_stats.json",
+    "generated_by": "scripts/compute_data_stats.py",
+    "git_hash": "a57a56533b26c99b3416069f7f89be77c5a86049"
+  },
+  "totals": {
+    "total_queries": 5703,
+    "dev_total": 570
+  },
+  "splits": {
+    "train": 4562,
+    "dev": 570,
+    "test": 571
+  },
+  "query_length": {
+    "count": 5703,
+    "min": 22,
+    "max": 331,
+    "mean": 75.5348062423286,
+    "p50": 73,
+    "p90": 104
+  },
+  "evidence_count": {
+    "count": 5703,
+    "min": 1,
+    "max": 1,
+    "mean": 1.0,
+    "p50": 1,
+    "p90": 1
+  },
+  "query_flags": {
+    "year_ratio": 0.1751709626512362,
+    "digit_ratio": 0.27091004734350344,
+    "percent_ratio": 0.03541995440995967
+  },
+  "dev_subsets": {
+    "complex": {
+      "size": 243,
+      "ratio": 0.4263157894736842,
+      "rule_hits": {
+        "multi_evidence": 0,
+        "two_years": 0,
+        "compare_keywords": 189,
+        "digit_and_year": 106,
+        "abbrev": 501
+      },
+      "path": "data/subsets\\dev_complex_qids.txt"
+    },
+    "abbrev": {
+      "size": 501,
+      "ratio": 0.8789473684210526,
+      "path": "data/subsets\\dev_abbrev_qids.txt"
+    }
+  }
+}

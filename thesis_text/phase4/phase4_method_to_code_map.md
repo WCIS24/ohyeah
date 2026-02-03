@@ -18,3 +18,7 @@ How to use:
 | 计算器流程 | 事实抽取 + 计算 + gate 回退 | scripts/run_with_calculator.py:main | configs/run_with_calculator.yaml | outputs/<run_id>/facts.jsonl; results_R.jsonl; calc_traces.jsonl; predictions_calc.jsonl | gate 规则在 run_with_calculator.py:244-269 |
 | 数值评测 | numeric_em 与误差统计 | scripts/eval_numeric.py:main | configs/eval_numeric.yaml | outputs/<run_id>/numeric_metrics.json; numeric_per_query.jsonl | precision 参数决定数值对齐 |
 | 产物规范 | run_id 生成与 logs/config 落盘 | src/finder_rag/utils.py:generate_run_id | README.md:26-29 | outputs/<run_id>/logs.txt; config.yaml | run_id 由 UTC 时间戳+UUID 组成 |
+| 数据统计汇总 | train/dev/test 与复杂子集规模 | scripts/compute_data_stats.py:main | configs/data_stats.yaml | docs/data_stats.json; outputs/<run_id>/metrics.json | 合并 data_stats.json + subsets_stats.json |
+| 多步检索细节 | planner/gap/stop/refiner 规则 | docs/multistep_design.md | configs/run_multistep.yaml | docs/multistep_design.md | 可复述化规则说明 |
+| 计算器细节 | 任务类型与抽取/计算规则 | docs/calculator_design.md | configs/run_with_calculator.yaml | docs/calculator_design.md | 规则库与 gate 说明 |
+| LLM 依赖说明 | baseline 是否依赖外部 LLM | docs/repro_env_and_llm_dependency.md | configs/run_baseline.yaml | docs/repro_env_and_llm_dependency.md | 目前为模板式生成 |

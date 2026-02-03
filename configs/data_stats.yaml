@@ -1,0 +1,5 @@
+﻿output_dir: outputs
+seed: 42
+data_stats_path: outputs/20260202_165254_c4b131/data_stats.json
+subsets_stats_path: outputs/20260202_165303_b04a7b/subsets_stats.json
+output_path: docs/data_stats.json

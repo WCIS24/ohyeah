@@ -8,6 +8,8 @@
 3.2 数据与索引构建
 数据准备阶段由 prepare_data 负责：读取 dataset/finder_dataset.csv（FinDER CSV），按 train/dev/test 比例切分并写入 data/processed/*.jsonl，同时在 outputs/<run_id>/ 下落盘 data_stats.json 与 config.yaml，并记录随机种子以保证可复现性。[EVIDENCE] configs/prepare_data.yaml:1-20; scripts/prepare_data.py:64-145
 
+数据集总量与拆分规模已汇总为 docs/data_stats.json（含 train/dev/test 计数与 dev 复杂子集比例），可作为方法章中的数据规模证据。[EVIDENCE] docs/data_stats.json; outputs/20260202_165254_c4b131/data_stats.json; outputs/20260202_165303_b04a7b/subsets_stats.json
+
 语料与索引构建由 build_corpus 完成：从 data/processed 的 evidences 字段抽取证据文本，按 chunk_size=1000 与 overlap=100 进行分块，并写入 data/corpus/chunks.jsonl，chunk 的 meta 中包含 source_qid、evidence_id 与 chunk_id 等信息。[EVIDENCE] configs/build_corpus.yaml:1-6; scripts/build_corpus.py:67-105
 
 整体流水线按 README 中的脚本入口顺序组织，便于从数据处理到评测的逐步复现。[EVIDENCE] README.md:41-131
@@ -29,10 +31,14 @@ eval_numeric(configs/eval_numeric.yaml, predictions_calc.jsonl)
 
 baseline 运行时读取 dev 分片与 corpus，按 top_k 与 alpha 检索证据，输出 predictions.jsonl（qid、pred_answer、used_chunks）；pred_answer 采用模板式生成函数 placeholder_generate，从检索片段中截取文本构造答案。[EVIDENCE] configs/run_baseline.yaml:4-12; scripts/run_baseline.py:86-142; scripts/run_baseline.py:50-51
 
+baseline 的生成不依赖外部 LLM API，当前实现为模板式生成；最小复现分支（retrieval-only / full QA）已整理于 docs/repro_env_and_llm_dependency.md。[EVIDENCE] scripts/run_baseline.py:50-51; docs/repro_env_and_llm_dependency.md
+
 3.4 多步检索（multistep）
 多步检索由 MultiStepRetriever 执行，配置项包含 max_steps、top_k_each_step、top_k_final、novelty_threshold 与 stop_no_new_steps，并支持 gate/refiner 等开关；这些配置来自 run_multistep.yaml 并在运行时写入 MultiStepConfig。[EVIDENCE] configs/run_multistep.yaml:1-21; scripts/run_multistep_retrieval.py:127-148; src/multistep/engine.py:12-27
 
 多步检索内部使用 StepPlanner 规划检索步骤，通过 gap 检测与 stop criteria 决定是否继续，并在必要时调用 refiner 生成下一步查询；最终通过 merge_strategy 聚合候选并在不足时回退补齐至 final_top_k。[EVIDENCE] src/multistep/engine.py:33-191
+
+StepPlanner 的 query_type 规则、gap 检测逻辑、停止条件（EMPTY_RESULTS / NO_GAP / MAX_STEPS / NO_NEW_EVIDENCE）与 query refiner 的改写规则已在 docs/multistep_design.md 中做可复述化整理。[EVIDENCE] docs/multistep_design.md; src/multistep/planner.py:7-41; src/multistep/gap.py:51-84; src/multistep/stop.py:26-53; src/multistep/refiner.py:19-34
 
 多步检索输出 multistep_traces.jsonl 与 retrieval_results.jsonl，分别记录逐步检索轨迹与每个 query 的最终候选（final_top_chunks / all_collected_chunks、stop_reason、steps_used）。[EVIDENCE] scripts/run_multistep_retrieval.py:166-213; README.md:109-112
 
@@ -43,6 +49,8 @@ baseline 的答案生成采用模板式占位策略：从检索到的证据片�
 
 3.6 数值计算器模块
 run_with_calculator 支持两种输入：直接调用检索器或复用 multistep 的 retrieval_results；输出 retrieval_results.jsonl、facts.jsonl、results_R.jsonl、calc_traces.jsonl 与 predictions_calc.jsonl，为后续 numeric 评测提供输入与可解释轨迹。[EVIDENCE] configs/run_with_calculator.yaml:1-17; scripts/run_with_calculator.py:147-152; scripts/run_with_calculator.py:184-211; README.md:133-138
+
+计算器模块的任务类型（yoy/diff/share/multiple）、事实抽取规则与 gate 回退条件已整理于 docs/calculator_design.md，对应代码在 src/calculator 与 run_with_calculator.py 中可追溯。[EVIDENCE] docs/calculator_design.md; src/calculator/compute.py:9-59; src/calculator/extract.py:7-154; scripts/run_with_calculator.py:244-279
 
 数值评测由 eval_numeric 执行，按 precision 参数计算 numeric_em 与误差统计，逐条写入 numeric_per_query.jsonl，并汇总到 numeric_metrics.json 以供实验表格引用。[EVIDENCE] configs/eval_numeric.yaml:1-6; scripts/eval_numeric.py:151-234
 

@@ -49,6 +49,7 @@ def extract_entities_from_query(query: str) -> List[str]:
 
 
 def detect_gap(query: str, chunks: List[dict], query_type: str) -> GapResult:
+    """Detect missing years/entities to decide whether another retrieval step is needed."""
     query_years = extract_years(query)
     chunk_years = set()
     for ch in chunks:

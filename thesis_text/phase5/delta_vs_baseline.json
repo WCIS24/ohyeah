@@ -1,0 +1,75 @@
+{
+  "baseline": {
+    "label": "pre_ft_baseline",
+    "run_id": "20260130_014940_21aa62_m01",
+    "full_r10": 0.32456140350877194,
+    "full_mrr10": 0.202958089668616,
+    "complex_r10": 0.345679012345679,
+    "complex_mrr10": 0.23303775556861975,
+    "num_em": null,
+    "num_rel": null,
+    "num_cov": null
+  },
+  "deltas": {
+    "post_ft_baseline": {
+      "run_id": "20260130_014940_21aa62_m02",
+      "delta": {
+        "full_r10": 0.054385964912280704,
+        "full_mrr10": 0.05249025341130603,
+        "complex_r10": 0.04938271604938271,
+        "complex_mrr10": 0.06309033901626496,
+        "num_em": null,
+        "num_rel": null,
+        "num_cov": null
+      }
+    },
+    "post_ft_multistep_best": {
+      "run_id": "20260130_014940_21aa62_m03",
+      "delta": {
+        "full_r10": 0.054385964912280704,
+        "full_mrr10": 0.05263645224171537,
+        "complex_r10": 0.04938271604938271,
+        "complex_mrr10": 0.06343327454438566,
+        "num_em": null,
+        "num_rel": null,
+        "num_cov": null
+      }
+    },
+    "post_ft_baseline_calc_best": {
+      "run_id": "20260130_014940_21aa62_m04",
+      "delta": {
+        "full_r10": 0.054385964912280704,
+        "full_mrr10": 0.05249025341130603,
+        "complex_r10": 0.04938271604938271,
+        "complex_mrr10": 0.06309033901626496,
+        "num_em": null,
+        "num_rel": null,
+        "num_cov": null
+      }
+    },
+    "post_ft_multistep_calc_best": {
+      "run_id": "20260130_014940_21aa62_m05",
+      "delta": {
+        "full_r10": 0.054385964912280704,
+        "full_mrr10": 0.05263645224171537,
+        "complex_r10": 0.04938271604938271,
+        "complex_mrr10": 0.06343327454438566,
+        "num_em": null,
+        "num_rel": null,
+        "num_cov": null
+      }
+    },
+    "post_ft_multistep_T1_calc_best": {
+      "run_id": "20260130_014940_21aa62_m06",
+      "delta": {
+        "full_r10": 0.054385964912280704,
+        "full_mrr10": 0.05249025341130603,
+        "complex_r10": 0.04938271604938271,
+        "complex_mrr10": 0.06309033901626496,
+        "num_em": null,
+        "num_rel": null,
+        "num_cov": null
+      }
+    }
+  }
+}

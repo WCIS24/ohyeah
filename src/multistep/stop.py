@@ -37,6 +37,7 @@ class StopCriteria:
         empty_results: bool,
         state: StopState,
     ) -> StopResult:
+        """Return whether to stop multi-step retrieval based on gap and novelty signals."""
         if empty_results:
             return StopResult(True, "EMPTY_RESULTS")
         if gap_type == "NO_GAP":
@@ -52,6 +53,7 @@ class StopCriteria:
         return StopResult(False, "CONTINUE")
 
     def novelty_filter(self, new_chunks: List[dict], existing_chunks: List[dict]) -> List[dict]:
+        """Filter near-duplicate chunks using Jaccard similarity threshold."""
         if self.novelty_threshold <= 0:
             return new_chunks
         filtered = []

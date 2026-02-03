@@ -23,6 +23,7 @@ class StepPlanner:
         self.compare_keywords = compare_keywords or COMPARE_KEYWORDS
 
     def plan(self, query: str) -> PlanResult:
+        """Classify query intent to guide multi-step retrieval behavior."""
         q_lower = query.lower()
         has_years = bool(YEAR_RE.findall(query))
         has_percent = bool(PERCENT_RE.search(query))

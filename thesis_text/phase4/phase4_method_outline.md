@@ -20,6 +20,7 @@ How to use:
 - Evidence paths:
   - configs/prepare_data.yaml:1-20
   - scripts/prepare_data.py:64-145
+  - docs/data_stats.json
   - configs/build_corpus.yaml:1-6
   - scripts/build_corpus.py:67-105
 
@@ -29,6 +30,7 @@ How to use:
   - configs/run_baseline.yaml:4-12
   - scripts/run_baseline.py:86-142
   - src/retrieval/retriever.py:83-157
+  - docs/repro_env_and_llm_dependency.md
 
 ## 3.4 多步检索（multistep）
 - 要写什么：多步配置（max_steps/top_k_each_step/top_k_final/novelty/stop）、Planner/Gap/Refiner/Stop 组件与合并策略；输出文件与字段。
@@ -36,6 +38,7 @@ How to use:
   - configs/run_multistep.yaml:1-21
   - scripts/run_multistep_retrieval.py:127-213
   - src/multistep/engine.py:12-197
+  - docs/multistep_design.md
   - README.md:109-116
 
 ## 3.5 证据整合与答案生成
@@ -51,6 +54,7 @@ How to use:
   - scripts/run_with_calculator.py:147-152; 184-295
   - configs/eval_numeric.yaml:1-6
   - scripts/eval_numeric.py:151-234
+  - docs/calculator_design.md
   - README.md:133-138
 
 ## 3.7 评测与日志/产物规范

@@ -22,6 +22,7 @@ def refine_query(
     missing_years: List[str],
     missing_entity: Optional[str],
 ) -> Refinement:
+    """Refine query by appending missing years/entities or metric synonyms."""
     if gap_type == "MISSING_YEAR" and missing_years:
         return Refinement(refined_query=f"{query} {missing_years[0]}", reason="append_missing_year")
     if gap_type == "MISSING_ENTITY" and missing_entity:

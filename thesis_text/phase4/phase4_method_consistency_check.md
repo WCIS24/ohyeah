@@ -18,6 +18,8 @@ How to use:
 | EM | Exact Match (EM) | Exact Match (EM) | PASS | 指标写法统一 | 
 | run_id | run_id | run_id | PASS | outputs/<run_id> 结构已说明 | 
 | baseline | baseline | baseline | PASS | 与 README 命名一致 | 
+| LLM dependency | baseline 为模板式生成 | baseline 不依赖外部 LLM | PASS | 见 docs/repro_env_and_llm_dependency.md | 
+| 数据统计 | 使用 docs/data_stats.json | 已引用 docs/data_stats.json | PASS | 统计口径统一 | 
 
 ## 口径检查结论
 - 当前方法章术语与 Phase 1 规范一致，未发现“同名不同义”或指标命名冲突。
