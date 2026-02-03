@@ -1,0 +1,63 @@
+\chapter{方法}
+第三章 方法
+
+\section{任务形式化与符号约定}
+本研究将原始数据统一为包含 qid、query、answer、evidences 的记录结构，通过 prepare\_data 的 field\_map 将原始列映射到统一字段，并将 evidences 解析为带 evidence\_id 的结构化列表，保证检索与问答模块共享一致的输入格式。
+
+在本文的接口约定中，检索模块产出“证据集合”，而答案模块产出最终答案：baseline 的 predictions.jsonl 记录 qid、pred\_answer 与 used\_chunks，多步检索的 retrieval\_results.jsonl 记录 final\_top\_chunks 与 all\_collected\_chunks，计算器流程额外生成 predictions\_calc.jsonl 等文件并保留检索结果以便回溯。
+
+\section{数据与索引构建}
+数据准备阶段由 prepare\_data 负责：读取 dataset/finder\_dataset.csv（FinDER CSV），按 train/dev/test 比例切分并写入 data/processed/*.jsonl，同时在 outputs/<run\_id>/ 下落盘 data\_stats.json 与 config.yaml，并记录随机种子以保证可复现性。
+
+数据集总量与拆分规模已汇总为 docs/data\_stats.json（含 train/dev/test 计数与 dev 复杂子集比例），可作为方法章中的数据规模证据。
+
+语料与索引构建由 build\_corpus 完成：从 data/processed 的 evidences 字段抽取证据文本，按 chunk\_size=1000 与 overlap=100 进行分块，并写入 data/corpus/chunks.jsonl，chunk 的 meta 中包含 source\_qid、evidence\_id 与 chunk\_id 等信息。
+
+整体流水线按 README 中的脚本入口顺序组织，便于从数据处理到评测的逐步复现。
+
+\begin{verbatim}
+prepare_data(configs/prepare_data.yaml)
+build_corpus(configs/build_corpus.yaml)
+eval_retrieval(configs/eval_retrieval.yaml)
+run_baseline(configs/run_baseline.yaml) -> outputs/<run_id>/predictions.jsonl
+eval_qa(configs/eval_qa.yaml, predictions.jsonl, data/processed/dev.jsonl)
+run_multistep_retrieval(configs/run_multistep.yaml) -> outputs/<run_id>/retrieval_results.jsonl
+eval_multistep_retrieval(configs/eval_multistep.yaml, retrieval_results.jsonl)
+run_with_calculator(configs/run_with_calculator.yaml, optional multistep results)
+eval_numeric(configs/eval_numeric.yaml, predictions_calc.jsonl)
+\end{verbatim}
+
+\section{单步检索 baseline}
+单步检索使用 HybridRetriever：同时维护 BM25 与 dense 向量索引，支持 bm25/dense/hybrid 三种模式，并用 alpha 融合归一化得分；当 use\_faiss 启用但系统无 FAISS 时回退到 brute-force 计算。该 baseline 属于检索增强（RAG）流程，检索器与生成模块按接口分离。
+
+baseline 运行时读取 dev 分片与 corpus，按 top\_k 与 alpha 检索证据，输出 predictions.jsonl（qid、pred\_answer、used\_chunks）；pred\_answer 采用模板式生成函数 placeholder\_generate，从检索片段中截取文本构造答案。
+
+baseline 的生成不依赖外部 LLM API，当前实现为模板式生成；最小复现分支（retrieval-only / full QA）已整理于 docs/repro\_env\_and\_llm\_dependency.md。
+
+\section{多步检索（multistep）}
+多步检索由 MultiStepRetriever 执行，配置项包含 max\_steps、top\_k\_each\_step、top\_k\_final、novelty\_threshold 与 stop\_no\_new\_steps，并支持 gate/refiner 等开关；这些配置来自 run\_multistep.yaml 并在运行时写入 MultiStepConfig。
+
+多步检索内部使用 StepPlanner 规划检索步骤，通过 gap 检测与 stop criteria 决定是否继续，并在必要时调用 refiner 生成下一步查询；最终通过 merge\_strategy 聚合候选并在不足时回退补齐至 final\_top\_k。
+
+StepPlanner 的 query\_type 规则、gap 检测逻辑、停止条件（EMPTY\_RESULTS / NO\_GAP / MAX\_STEPS / NO\_NEW\_EVIDENCE）与 query refiner 的改写规则已在 docs/multistep\_design.md 中做可复述化整理。
+
+多步检索输出 multistep\_traces.jsonl 与 retrieval\_results.jsonl，分别记录逐步检索轨迹与每个 query 的最终候选（final\_top\_chunks / all\_collected\_chunks、stop\_reason、steps\_used）。
+
+\section{证据整合与答案生成}
+baseline 的答案生成采用模板式占位策略：从检索到的证据片段中截取内容构造 pred\_answer，并记录 used\_chunks 以保持“答案—证据”可追溯关系。
+
+在 calculator 流程中，若计算结果通过 gate 规则则基于计算结果生成 pred\_answer；否则回退到检索片段与 placeholder\_generate，并记录 fallback\_reason 与 used\_chunks，以保证失败路径同样可回溯。
+
+\section{数值计算器模块}
+run\_with\_calculator 支持两种输入：直接调用检索器或复用 multistep 的 retrieval\_results；输出 retrieval\_results.jsonl、facts.jsonl、results\_R.jsonl、calc\_traces.jsonl 与 predictions\_calc.jsonl，为后续 numeric 评测提供输入与可解释轨迹。
+
+计算器模块的任务类型（yoy/diff/share/multiple）、事实抽取规则与 gate 回退条件已整理于 docs/calculator\_design.md，对应代码在 src/calculator 与 run\_with\_calculator.py 中可追溯。
+
+数值评测由 eval\_numeric 执行，按 precision 参数计算 numeric\_em 与误差统计，逐条写入 numeric\_per\_query.jsonl，并汇总到 numeric\_metrics.json 以供实验表格引用。
+
+\section{评测与日志/产物规范}
+检索评测通过 compute\_retrieval\_metrics 计算 Recall@K / MRR@K 等指标，eval\_retrieval 写出 metrics.json 与 per\_query\_results.jsonl，为检索阶段提供统一评测口径。
+
+问答评测使用 Exact Match (EM) 与 token\_f1 作为核心指标，数值评测使用 numeric\_em 与误差统计字段，并统一写入各自的 metrics.json / numeric\_metrics.json 文件。
+
+所有脚本使用 run\_id 生成 outputs/<run\_id>/ 目录并落盘 config.yaml、logs.txt 等文件；run\_id 由 UTC 时间戳与短 UUID 组成，同时记录 git\_commit 以支持复现。
