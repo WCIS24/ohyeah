@@ -30,7 +30,8 @@
       - multistep.enabled=false
       - calculator.enabled=true
       - calculator.gate.min_conf=0.4
-      - calculator.gate.allow_task_types=[]
+      # Keep explicit task whitelist to avoid full gate_task fallback.
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
   - label: post_ft_multistep_calc_best
     tag: post_ft_ms_calc
     overrides:
@@ -44,7 +45,7 @@
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=true
       - calculator.gate.min_conf=0.4
-      - calculator.gate.allow_task_types=[]
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
   - label: post_ft_multistep_T1_calc_best
     tag: post_ft_ms_T1_calc
     overrides:
@@ -58,4 +59,4 @@
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=true
       - calculator.gate.min_conf=0.4
-      - calculator.gate.allow_task_types=[]
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
