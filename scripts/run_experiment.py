@@ -178,6 +178,37 @@ def main() -> int:
                 logger.error("eval_multistep complex failed rc=%d", rc)
                 return rc
             summary["runs"]["retrieval_complex"] = eval_c_run_id
+
+            abbrev_path = get_path(resolved, "eval.subsets.abbrev_path")
+            if abbrev_path and os.path.exists(abbrev_path):
+                eval_a_run_id = f"{run_id}_ms_eval_abbrev"
+                eval_a_cfg = stage_config(
+                    resolved,
+                    eval_a_run_id,
+                    {
+                        "results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl",
+                        "subset_qids_path": abbrev_path,
+                    },
+                )
+                eval_a_cfg_path = os.path.join(run_dir, "config.ms_eval_abbrev.yaml")
+                save_config(eval_a_cfg, eval_a_cfg_path)
+                rc = run_script(
+                    [
+                        sys.executable,
+                        "scripts/eval_multistep_retrieval.py",
+                        "--config",
+                        eval_a_cfg_path,
+                        "--subset-qids",
+                        abbrev_path,
+                    ],
+                    log_path,
+                )
+                if rc != 0:
+                    logger.error("eval_multistep abbrev failed rc=%d", rc)
+                    return rc
+                summary["runs"]["retrieval_abbrev"] = eval_a_run_id
+            else:
+                logger.info("skip abbrev eval (multistep): missing subset path=%s", abbrev_path)
         else:
             eval_run_id = f"{run_id}_retrieval_full"
             eval_cfg = stage_config(resolved, eval_run_id, {})
@@ -212,6 +243,30 @@ def main() -> int:
                 logger.error("eval_retrieval complex failed rc=%d", rc)
                 return rc
             summary["runs"]["retrieval_complex"] = eval_c_run_id
+
+            abbrev_path = get_path(resolved, "eval.subsets.abbrev_path")
+            if abbrev_path and os.path.exists(abbrev_path):
+                eval_a_run_id = f"{run_id}_retrieval_abbrev"
+                eval_a_cfg = stage_config(resolved, eval_a_run_id, {})
+                eval_a_cfg_path = os.path.join(run_dir, "config.retrieval_abbrev.yaml")
+                save_config(eval_a_cfg, eval_a_cfg_path)
+                rc = run_script(
+                    [
+                        sys.executable,
+                        "scripts/eval_retrieval.py",
+                        "--config",
+                        eval_a_cfg_path,
+                        "--subset-qids",
+                        abbrev_path,
+                    ],
+                    log_path,
+                )
+                if rc != 0:
+                    logger.error("eval_retrieval abbrev failed rc=%d", rc)
+                    return rc
+                summary["runs"]["retrieval_abbrev"] = eval_a_run_id
+            else:
+                logger.info("skip abbrev eval (single-step): missing subset path=%s", abbrev_path)
 
     # Calculator pipeline
     if calc_enabled:
@@ -295,6 +350,7 @@ def main() -> int:
 
     summary["metrics"]["retrieval_full"] = load_metrics("retrieval_full", "metrics.json")
     summary["metrics"]["retrieval_complex"] = load_metrics("retrieval_complex", "metrics.json")
+    summary["metrics"]["retrieval_abbrev"] = load_metrics("retrieval_abbrev", "metrics.json")
     summary["metrics"]["numeric_dev"] = load_metrics("numeric_dev", "numeric_metrics.json")
     summary["metrics"]["numeric_full"] = load_metrics("numeric_full", "numeric_metrics.json")
 

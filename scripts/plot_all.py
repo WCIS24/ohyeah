@@ -803,7 +803,64 @@ def main() -> int:
                     }
                 )
 
-        # 5) Numeric error distribution (optional)
+        # 5) Abbrev subset breakdown (optional)
+        abbrev_cfg = figure_cfg.get("abbrev_breakdown", {})
+        if abbrev_cfg.get("enabled", False):
+            group = abbrev_cfg.get("group")
+            abbrev_exps = (
+                [e for e in experiments if e.get("group") == group]
+                if group
+                else experiments
+            )
+            output_path = os.path.join(
+                fig_dir, f"{abbrev_cfg.get('output_name', 'abbrev_breakdown')}.pdf"
+            )
+            png_path = (
+                output_path.replace(".pdf", ".png") if config.get("export_png", True) else None
+            )
+            has_data = plot_ablation_breakdown(
+                abbrev_exps,
+                data_root,
+                main_cfg.get("summary_filename", "summary.json"),
+                abbrev_cfg.get("metrics", ["abbrev_r10", "abbrev_mrr10"]),
+                role_map,
+                palette,
+                theme,
+                output_path,
+                png_path,
+                int(config.get("png_dpi", 600)),
+                config.get("figure_sizes", {}).get("medium", [4.8, 3.2]),
+                logger,
+            )
+            status = "ok" if has_data else "TODO: missing summary.json"
+            if record_entries:
+                fig_path = latex_path(output_path)
+                entries.append(
+                    {
+                        "title": "Abbrev subset breakdown",
+                        "question": "How do runs perform on abbreviation-heavy subset retrieval?",
+                        "data_sources": [
+                            f"{data_root}/<run_id>/"
+                            f"{main_cfg.get('summary_filename', 'summary.json')}"
+                        ],
+                        "script": "scripts/plot_all.py (abbrev_breakdown)",
+                        "outputs": [
+                            output_path,
+                            png_path or output_path.replace(".pdf", ".png"),
+                        ],
+                        "latex": (
+                            "\\begin{figure}[t]\n"
+                            "\\centering\n"
+                            f"\\includegraphics[width=0.85\\linewidth]{{{fig_path}}}\n"
+                            "\\caption{TODO: Abbrev subset retrieval comparison}\n"
+                            "\\label{fig:abbrev_breakdown}\n"
+                            "\\end{figure}"
+                        ),
+                        "status": status,
+                    }
+                )
+
+        # 6) Numeric error distribution (optional)
         num_cfg = figure_cfg.get("numeric_errors", {})
         if num_cfg.get("enabled", False):
             output_path = os.path.join(
@@ -850,7 +907,7 @@ def main() -> int:
                     }
                 )
 
-        # 6) Multistep trace case (optional)
+        # 7) Multistep trace case (optional)
         trace_cfg = figure_cfg.get("multistep_trace", {})
         if trace_cfg.get("enabled", False):
             output_path = os.path.join(

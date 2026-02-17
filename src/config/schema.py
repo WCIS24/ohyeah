@@ -64,6 +64,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "skip_retrieval": False,
         "subsets": {
             "complex_path": "data/subsets/dev_complex_qids.txt",
+            "abbrev_path": "data/subsets/dev_abbrev_qids.txt",
             "numeric_path": "data/subsets/dev_numeric_qids.txt",
         },
         "numeric": {"tolerance": 4, "rel_eps": 1e-9, "normalize_percent_mode": "auto"},
@@ -122,6 +123,7 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "eval.k_list": (list,),
     "eval.skip_retrieval": (bool,),
     "eval.subsets.complex_path": (str,),
+    "eval.subsets.abbrev_path": (str,),
     "eval.subsets.numeric_path": (str,),
     "eval.numeric.tolerance": (int,),
     "eval.numeric.rel_eps": (float, int),
@@ -257,7 +259,11 @@ def validate_paths(config: Dict[str, Any]) -> List[str]:
         warnings.append(f"processed_dir missing: {processed_dir}")
     if corpus_dir and not os.path.exists(corpus_dir):
         warnings.append(f"corpus_dir missing: {corpus_dir}")
-    for path_key in ["eval.subsets.complex_path", "eval.subsets.numeric_path"]:
+    for path_key in [
+        "eval.subsets.complex_path",
+        "eval.subsets.abbrev_path",
+        "eval.subsets.numeric_path",
+    ]:
         path = get_path(config, path_key)
         if path and not os.path.exists(path):
             warnings.append(f"subset path missing: {path}")

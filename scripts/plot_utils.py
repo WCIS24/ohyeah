@@ -94,12 +94,15 @@ def extract_summary_metrics(summary: Dict[str, Any]) -> Dict[str, Optional[float
     metrics = summary.get("metrics", {}) if isinstance(summary, dict) else {}
     full = metrics.get("retrieval_full", {}) if isinstance(metrics, dict) else {}
     complex_m = metrics.get("retrieval_complex", {}) if isinstance(metrics, dict) else {}
+    abbrev_m = metrics.get("retrieval_abbrev", {}) if isinstance(metrics, dict) else {}
     numeric = metrics.get("numeric_dev", {}) if isinstance(metrics, dict) else {}
     return {
         "full_r10": _safe_float(full.get("recall@10")),
         "full_mrr10": _safe_float(full.get("mrr@10")),
         "complex_r10": _safe_float(complex_m.get("recall@10")),
         "complex_mrr10": _safe_float(complex_m.get("mrr@10")),
+        "abbrev_r10": _safe_float(abbrev_m.get("recall@10")),
+        "abbrev_mrr10": _safe_float(abbrev_m.get("mrr@10")),
         "numeric_em": _safe_float(numeric.get("numeric_em")),
         "rel_error_mean": _safe_float(numeric.get("rel_error_mean")),
         "coverage": _safe_float(numeric.get("coverage")),

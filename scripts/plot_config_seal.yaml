@@ -1,20 +1,19 @@
-output_root: thesis/figures
+output_root: thesis/figures_seal
 style_dir: thesis/figures/style
 palettes_path: thesis/figures/style/palettes.yaml
 role_map_path: thesis/figures/style/role_map.yaml
-experiments_path: configs/step6_experiments.yaml
+experiments_path: configs/step6_experiments_seal.yaml
 data_root: outputs
 
 default_theme: ThemeA
 render_all_themes: false
 
 export_png: true
-png_dpi: 600
+png_dpi: 300
 
 figure_sizes:
   wide: [6.2, 3.4]
   medium: [4.8, 3.2]
-  narrow: [3.6, 2.8]
 
 figures:
   main_results:
@@ -42,39 +41,22 @@ figures:
         higher_is_better: true
 
   recall_mrr_curves:
-    enabled: true
-    metrics_filename: metrics.json
-    k_values: [1, 5, 10]
-    use_groups: ["main"]
-    output_name: "recall_mrr_k"
+    enabled: false
 
   delta_bar:
-    enabled: true
-    delta_filenames: ["delta_vs_baseline.json", "delta_vs_pre.json"]
-    metrics: ["recall@10", "mrr@10", "numeric_em", "coverage"]
-    output_name: "delta_bar"
+    enabled: false
 
   ablation_breakdown:
-    enabled: true
-    group: ablation
-    metrics: ["full_r10", "full_mrr10", "complex_r10", "complex_mrr10"]
-    output_name: "ablation_breakdown"
+    enabled: false
 
   abbrev_breakdown:
-    enabled: false
+    enabled: true
     group: null
     metrics: ["abbrev_r10", "abbrev_mrr10"]
     output_name: "abbrev_breakdown"
 
   numeric_errors:
-    enabled: true
-    run_id: null
-    per_query_filename: numeric_per_query.jsonl
-    output_name: "numeric_error_dist"
+    enabled: false
 
   multistep_trace:
-    enabled: true
-    run_id: null
-    qid: null
-    trace_filename: multistep_traces.jsonl
-    output_name: "multistep_trace_case"
+    enabled: false

@@ -53,6 +53,7 @@ def main() -> int:
 
         full = metrics.get("retrieval_full", {})
         complex_m = metrics.get("retrieval_complex", {})
+        abbrev_m = metrics.get("retrieval_abbrev", {})
         numeric = metrics.get("numeric_dev", {})
 
         rows_main.append(
@@ -63,6 +64,8 @@ def main() -> int:
                 "full_mrr10": fmt(full.get("mrr@10")),
                 "complex_r10": fmt(complex_m.get("recall@10")),
                 "complex_mrr10": fmt(complex_m.get("mrr@10")),
+                "abbrev_r10": fmt(abbrev_m.get("recall@10")),
+                "abbrev_mrr10": fmt(abbrev_m.get("mrr@10")),
             }
         )
         rows_num.append(
@@ -86,7 +89,16 @@ def main() -> int:
 
     write_table(
         os.path.join("docs", "TABLE_MAIN.md"),
-        ["label", "run_id", "full_r10", "full_mrr10", "complex_r10", "complex_mrr10"],
+        [
+            "label",
+            "run_id",
+            "full_r10",
+            "full_mrr10",
+            "complex_r10",
+            "complex_mrr10",
+            "abbrev_r10",
+            "abbrev_mrr10",
+        ],
         rows_main,
     )
     write_table(
@@ -96,7 +108,16 @@ def main() -> int:
     )
     write_table(
         os.path.join("docs", "TABLE_ABLATION.md"),
-        ["label", "run_id", "full_r10", "full_mrr10", "complex_r10", "complex_mrr10"],
+        [
+            "label",
+            "run_id",
+            "full_r10",
+            "full_mrr10",
+            "complex_r10",
+            "complex_mrr10",
+            "abbrev_r10",
+            "abbrev_mrr10",
+        ],
         rows_ablation,
     )
 

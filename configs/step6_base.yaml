@@ -65,6 +65,7 @@ eval:
   k_list: [1, 5, 10]
   subsets:
     complex_path: data/subsets/dev_complex_qids.txt
+    abbrev_path: data/subsets/dev_abbrev_qids.txt
     numeric_path: data/subsets/dev_numeric_qids.txt
   numeric:
     tolerance: 4
