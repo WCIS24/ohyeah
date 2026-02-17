@@ -1,0 +1,27 @@
+experiments:
+  - label: seal_mvp02_dense_singlestep
+    tag: seal_retrieval
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.mode=dense
+      - retriever.hybrid.alpha=0.5
+      - multistep.enabled=false
+      - calculator.enabled=false
+
+  - label: seal_mvp03_bm25_singlestep
+    tag: seal_retrieval
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.mode=bm25
+      - retriever.hybrid.alpha=0.5
+      - multistep.enabled=false
+      - calculator.enabled=false
+
+  - label: seal_mvp04_hybrid_singlestep
+    tag: seal_retrieval
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.mode=hybrid
+      - retriever.hybrid.alpha=0.5
+      - multistep.enabled=false
+      - calculator.enabled=false
