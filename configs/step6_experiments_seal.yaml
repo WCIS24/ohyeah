@@ -1,4 +1,31 @@
 experiments:
-  - label: seal_mvp02_dense
-    run_id: seal_mvp02
+  - label: seal_mvp01_preft_dense_singlestep
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01
     group: main
+  - label: seal_mvp02_dense_singlestep
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02
+    group: main
+  - label: seal_mvp03_bm25_singlestep
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03
+    group: main
+  - label: seal_mvp04_hybrid_singlestep
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04
+    group: main
+  - label: seal_mvp05_dense_multistep
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05
+    group: main
+  - label: seal_mvp06_dense_multistep_t1
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06
+    group: ablation
+  - label: seal_mvp07_dense_calc_empty_allow
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07
+    group: ablation
+  - label: seal_mvp08_dense_calc_allow_yoy_diff
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08
+    group: main
+  - label: seal_mvp09_dense_multistep_calc
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09
+    group: main
+  - label: seal_mvp10_dense_multistep_t1_calc
+    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10
+    group: ablation

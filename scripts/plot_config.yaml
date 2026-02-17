@@ -1,8 +1,8 @@
-output_root: thesis/figures
+output_root: thesis/figures_seal
 style_dir: thesis/figures/style
 palettes_path: thesis/figures/style/palettes.yaml
 role_map_path: thesis/figures/style/role_map.yaml
-experiments_path: configs/step6_experiments.yaml
+experiments_path: configs/step6_experiments_seal.yaml
 data_root: outputs
 
 default_theme: ThemeA

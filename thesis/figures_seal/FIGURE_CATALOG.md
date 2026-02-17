@@ -22,22 +22,22 @@
 
 - 状态：ok
 
-## Abbrev subset breakdown
-- 问题：How do runs perform on abbreviation-heavy subset retrieval?
+## 消融拆解图
+- 问题：从 baseline → multistep → +calculator 的分步贡献。
 - 数据源：
   - outputs/<run_id>/summary.json
-- 生成脚本入口：`scripts/plot_all.py (abbrev_breakdown)`
+- 生成脚本入口：`scripts/plot_all.py (ablation_breakdown)`
 - 输出文件：
-  - thesis/figures_seal/ThemeA/figures/abbrev_breakdown.pdf
-  - thesis/figures_seal/ThemeA/figures/abbrev_breakdown.png
+  - thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf
+  - thesis/figures_seal/ThemeA/figures/ablation_breakdown.png
 - LaTeX 引用：
 
 ```
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{thesis/figures_seal/ThemeA/figures/abbrev_breakdown.pdf}
-\caption{TODO: Abbrev subset retrieval comparison}
-\label{fig:abbrev_breakdown}
+\includegraphics[width=0.85\linewidth]{thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf}
+\caption{TODO: 消融拆解对比}
+\label{fig:ablation_breakdown}
 \end{figure}
 ```
 

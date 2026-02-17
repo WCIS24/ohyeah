@@ -1,3 +1,12 @@
 | label | run_id | num_em | num_rel | num_cov |
 | --- | --- | --- | --- | --- |
-| seal_mvp02_dense | seal_mvp02 | - | - | - |
+| seal_mvp01_preft_dense_singlestep | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01 | - | - | - |
+| seal_mvp02_dense_singlestep | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02 | - | - | - |
+| seal_mvp03_bm25_singlestep | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03 | - | - | - |
+| seal_mvp04_hybrid_singlestep | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04 | - | - | - |
+| seal_mvp05_dense_multistep | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05 | - | - | - |
+| seal_mvp06_dense_multistep_t1 | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06 | - | - | - |
+| seal_mvp07_dense_calc_empty_allow | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07 | 0.3964 | 689.2285 | 0.6180 |
+| seal_mvp08_dense_calc_allow_yoy_diff | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08 | 0.3197 | 296.5772 | 0.6695 |
+| seal_mvp09_dense_multistep_calc | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09 | 0.3108 | 294.2716 | 0.6760 |
+| seal_mvp10_dense_multistep_t1_calc | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10 | 0.3108 | 294.2716 | 0.6760 |
