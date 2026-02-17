@@ -1,7 +1,0 @@
-label,full_r10,full_mrr10,complex_r10,complex_mrr10
-pre_ft_baseline,,,,
-post_ft_baseline,,,,
-post_ft_multistep_best,,,,
-post_ft_baseline_calc_best,,,,
-post_ft_multistep_calc_best,,,,
-post_ft_multistep_T1_calc_best,,,,

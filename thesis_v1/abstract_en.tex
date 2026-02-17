@@ -1,6 +1,0 @@
-﻿\chapter*{Abstract}
-\addcontentsline{toc}{chapter}{Abstract}
-
-This thesis addresses complex financial queries and studies retrieval-augmented generation (RAG) for factuality, multi-step reasoning, and numeric computation. Using the FinDER dataset (5,703 query–evidence–answer triples), we formulate the task as evidence retrieval followed by answer generation or calculation, and implement a modular pipeline: baseline → multi-step retrieval → calculator. We standardize data preparation and indexing, define evaluation metrics (Recall@K, MRR@K, EM, and numeric\_em), and record reproducible outputs with run\_id and structured artifacts. Experiments show that retriever fine-tuning improves Full dev Recall@10 from 0.3246 to 0.3789, with consistent gains on the Complex subset; multi-step retrieval keeps Recall@10 stable while slightly changing MRR@10; enabling the calculator yields measurable numeric correctness. The pipeline emphasizes traceability of evidence and outputs. Results are reported under a single-seed setting without variance estimates or detailed error breakdowns, motivating future work on stability analysis, error categorization, and robustness.
-
-\noindent\textbf{Keywords:} FinDER; financial question answering; retrieval-augmented generation; multi-step retrieval; numeric reasoning; reproducibility
