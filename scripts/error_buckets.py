@@ -6,10 +6,17 @@ import os
 from collections import Counter
 from typing import Any, Dict, List
 
+import yaml
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Error bucket analysis")
-    parser.add_argument("--run-id", required=True, help="Experiment run_id (summary.json)")
+    parser.add_argument("--run-id", default=None, help="Experiment run_id (summary.json)")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="Optional experiments yaml for batch mode (reads experiments[].run_id)",
+    )
     return parser.parse_args()
 
 
@@ -26,9 +33,24 @@ def load_jsonl(path: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def main() -> int:
-    args = parse_args()
-    summary_path = os.path.join("outputs", args.run_id, "summary.json")
+def load_run_ids_from_experiments(path: str) -> List[str]:
+    if not os.path.exists(path):
+        raise SystemExit(f"missing config: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    experiments = data.get("experiments", [])
+    run_ids: List[str] = []
+    for exp in experiments:
+        if not isinstance(exp, dict):
+            continue
+        run_id = exp.get("run_id")
+        if run_id:
+            run_ids.append(str(run_id))
+    return run_ids
+
+
+def analyze_run(run_id: str) -> None:
+    summary_path = os.path.join("outputs", run_id, "summary.json")
     if not os.path.exists(summary_path):
         raise SystemExit(f"missing summary: {summary_path}")
 
@@ -79,7 +101,7 @@ def main() -> int:
             complex_buckets[bucket] += 1
 
     stats = {
-        "run_id": args.run_id,
+        "run_id": run_id,
         "calculator_run": calc_run,
         "multistep_run": ms_run,
         "retrieval_complex_run": complex_eval,
@@ -87,16 +109,33 @@ def main() -> int:
         "complex_buckets": dict(complex_buckets),
     }
 
-    out_path = os.path.join("outputs", args.run_id, "error_bucket_stats.json")
+    out_path = os.path.join("outputs", run_id, "error_bucket_stats.json")
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2)
 
     doc_path = os.path.join("docs", "ERROR_ANALYSIS.md")
     with open(doc_path, "a", encoding="utf-8") as f:
-        f.write(f"\n## Run {args.run_id}\n")
+        f.write(f"\n## Run {run_id}\n")
         f.write(f"- numeric_buckets: {dict(numeric_buckets)}\n")
         f.write(f"- complex_buckets: {dict(complex_buckets)}\n")
 
+
+def main() -> int:
+    args = parse_args()
+    if not args.run_id and not args.config:
+        raise SystemExit("provide --run-id or --config")
+
+    run_ids: List[str] = []
+    if args.run_id:
+        run_ids.append(args.run_id)
+    if args.config:
+        run_ids.extend(load_run_ids_from_experiments(args.config))
+    run_ids = list(dict.fromkeys(run_ids))
+    if not run_ids:
+        raise SystemExit("no run_id found")
+
+    for run_id in run_ids:
+        analyze_run(run_id)
     return 0
 
 

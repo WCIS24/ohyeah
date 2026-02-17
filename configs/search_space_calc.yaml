@@ -10,5 +10,5 @@ objective:
   mode: max
 constraint:
   metric: numeric_dev.coverage
-  baseline_metrics_path: outputs/20260129_182450_5ba5f4/numeric_metrics.json
+  baseline_metrics_path: outputs/seal_mvp08/summary.json
   min_delta: -0.02

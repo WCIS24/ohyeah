@@ -42,14 +42,16 @@ figures:
         higher_is_better: true
 
   recall_mrr_curves:
-    enabled: true
+    # Disabled for seal: this figure expects per-run flat metrics.json with recall@k/mrr@k.
+    enabled: false
     metrics_filename: metrics.json
     k_values: [1, 5, 10]
     use_groups: ["main"]
     output_name: "recall_mrr_k"
 
   delta_bar:
-    enabled: true
+    # Disabled for seal: delta_vs_*.json not consistently generated in Step6 runs.
+    enabled: false
     delta_filenames: ["delta_vs_baseline.json", "delta_vs_pre.json"]
     metrics: ["recall@10", "mrr@10", "numeric_em", "coverage"]
     output_name: "delta_bar"
@@ -67,13 +69,15 @@ figures:
     output_name: "abbrev_breakdown"
 
   numeric_errors:
-    enabled: true
+    # Disabled for seal: requires fixed run_id with numeric_per_query.jsonl.
+    enabled: false
     run_id: null
     per_query_filename: numeric_per_query.jsonl
     output_name: "numeric_error_dist"
 
   multistep_trace:
-    enabled: true
+    # Disabled for seal: requires fixed run_id with multistep_traces.jsonl.
+    enabled: false
     run_id: null
     qid: null
     trace_filename: multistep_traces.jsonl

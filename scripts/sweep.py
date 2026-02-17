@@ -49,7 +49,11 @@ def constraint_min_value(constraint: Dict[str, Any]) -> Any:
     baseline_path = constraint.get("baseline_metrics_path")
     metric = constraint.get("metric")
     delta = constraint.get("min_delta", 0.0)
-    if baseline_path and metric and os.path.exists(baseline_path):
+    if baseline_path:
+        if not metric:
+            raise ValueError("constraint.metric is required when baseline_metrics_path is set")
+        if not os.path.exists(baseline_path):
+            raise FileNotFoundError(f"constraint baseline_metrics_path missing: {baseline_path}")
         with open(baseline_path, "r", encoding="utf-8") as f:
             base = json.load(f)
         if "metrics" in base:
@@ -57,7 +61,9 @@ def constraint_min_value(constraint: Dict[str, Any]) -> Any:
         else:
             base_val = base.get(metric)
         if base_val is None:
-            return None
+            raise ValueError(
+                f"constraint metric not found in baseline: metric={metric} file={baseline_path}"
+            )
         return base_val + delta
     return None
 
@@ -84,7 +90,11 @@ def main() -> int:
     best_score = None
     best_run = None
 
-    constraint_min = constraint_min_value(constraint) if constraint else None
+    try:
+        constraint_min = constraint_min_value(constraint) if constraint else None
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"constraint_error: {exc}", file=sys.stderr)
+        return 2
 
     for idx, combo in enumerate(combos, start=1):
         overrides = []

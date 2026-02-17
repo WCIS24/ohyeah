@@ -99,6 +99,11 @@ def main() -> int:
     if issues:
         logger.info("config_issues=%s", issues)
 
+    seed = int(get_path(resolved, "runtime.seed", 42))
+    logger.info("seed=%d", seed)
+    run_output_dir = str(get_path(resolved, "output_dir", output_dir))
+    logger.info("output_dir=%s", run_output_dir)
+
     with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
         f.write(f"{git_hash}\n")
 
@@ -115,6 +120,9 @@ def main() -> int:
     multistep_enabled = bool(get_path(resolved, "multistep.enabled", False))
     calc_enabled = bool(get_path(resolved, "calculator.enabled", False))
     skip_retrieval = bool(get_path(resolved, "eval.skip_retrieval", False))
+
+    def run_artifact_path(run_name: str, filename: str) -> str:
+        return os.path.join(run_output_dir, run_name, filename)
 
     # Multi-step retrieval (for eval or calculator inputs)
     if multistep_enabled and (not skip_retrieval or calc_enabled):
@@ -138,7 +146,12 @@ def main() -> int:
             eval_cfg = stage_config(
                 resolved,
                 eval_run_id,
-                {"results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl"},
+                {
+                    "results_path": run_artifact_path(
+                        summary["runs"]["multistep"],
+                        "retrieval_results.jsonl",
+                    )
+                },
             )
             eval_cfg_path = os.path.join(run_dir, "config.ms_eval_full.yaml")
             save_config(eval_cfg, eval_cfg_path)
@@ -157,7 +170,10 @@ def main() -> int:
                 resolved,
                 eval_c_run_id,
                 {
-                    "results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl",
+                    "results_path": run_artifact_path(
+                        summary["runs"]["multistep"],
+                        "retrieval_results.jsonl",
+                    ),
                     "subset_qids_path": complex_path,
                 },
             )
@@ -186,7 +202,10 @@ def main() -> int:
                     resolved,
                     eval_a_run_id,
                     {
-                        "results_path": f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl",
+                        "results_path": run_artifact_path(
+                            summary["runs"]["multistep"],
+                            "retrieval_results.jsonl",
+                        ),
                         "subset_qids_path": abbrev_path,
                     },
                 )
@@ -274,8 +293,9 @@ def main() -> int:
         calc_cfg = stage_config(resolved, calc_run_id, {})
         if multistep_enabled:
             calc_cfg["use_multistep_results"] = True
-            calc_cfg["multistep_results_path"] = (
-                f"outputs/{summary['runs']['multistep']}/retrieval_results.jsonl"
+            calc_cfg["multistep_results_path"] = run_artifact_path(
+                summary["runs"]["multistep"],
+                "retrieval_results.jsonl",
             )
         calc_cfg_path = os.path.join(run_dir, "config.calc.yaml")
         save_config(calc_cfg, calc_cfg_path)
@@ -293,7 +313,7 @@ def main() -> int:
         eval_n_cfg = stage_config(
             resolved,
             eval_n_run_id,
-            {"predictions_path": f"outputs/{calc_run_id}/predictions_calc.jsonl"},
+            {"predictions_path": run_artifact_path(calc_run_id, "predictions_calc.jsonl")},
         )
         eval_n_cfg_path = os.path.join(run_dir, "config.numeric.yaml")
         save_config(eval_n_cfg, eval_n_cfg_path)
@@ -317,7 +337,7 @@ def main() -> int:
         eval_nf_cfg = stage_config(
             resolved,
             eval_nf_run_id,
-            {"predictions_path": f"outputs/{calc_run_id}/predictions_calc.jsonl"},
+            {"predictions_path": run_artifact_path(calc_run_id, "predictions_calc.jsonl")},
         )
         eval_nf_cfg_path = os.path.join(run_dir, "config.numeric_full.yaml")
         save_config(eval_nf_cfg, eval_nf_cfg_path)
@@ -342,7 +362,7 @@ def main() -> int:
         run_name = summary["runs"].get(run_key)
         if not run_name:
             return {}
-        path = os.path.join("outputs", run_name, filename)
+        path = run_artifact_path(run_name, filename)
         if not os.path.exists(path):
             return {}
         with open(path, "r", encoding="utf-8") as f:

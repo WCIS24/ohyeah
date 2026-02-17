@@ -95,7 +95,11 @@ def main() -> int:
     if not facts_path or not os.path.exists(facts_path):
         logger.error("missing facts_path: %s", facts_path)
         return 2
-    logger.info("facts_path=%s subset_qids_path=%s", facts_path, config.get("subset_qids_path"))
+    logger.info(
+        "facts_path=%s subset_qids_path=%s",
+        facts_path,
+        raw_config.get("subset_qids_path"),
+    )
 
     records = load_jsonl(dev_path)
     subset_qids = load_subset(raw_config.get("subset_qids_path"))

@@ -1,14 +1,19 @@
 experiments:
   - label: pre_ft_baseline
     run_id: 20260130_014940_21aa62_m01
+    group: main
   - label: post_ft_baseline
     run_id: 20260130_014940_21aa62_m02
+    group: main
   - label: post_ft_multistep_best
     run_id: 20260130_014940_21aa62_m03
+    group: main
   - label: post_ft_baseline_calc_best
     run_id: 20260130_014940_21aa62_m04
+    group: main
   - label: post_ft_multistep_calc_best
     run_id: 20260130_014940_21aa62_m05
+    group: main
   - label: post_ft_multistep_T1_calc_best
     run_id: 20260130_014940_21aa62_m06
     group: ablation

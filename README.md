@@ -163,6 +163,9 @@ python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 python scripts\make_tables.py --experiments configs\step6_experiments.yaml
 
 # 1) check error analysis summaries
+python scripts\error_buckets.py --run-id <run_id>
+
+# optional batch mode (iterate experiments[].run_id)
 python scripts\error_buckets.py --config configs\step6_experiments.yaml
 
 # 2) draft chapters are under docs/
