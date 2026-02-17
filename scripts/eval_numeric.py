@@ -20,6 +20,7 @@ from training.pairs import load_jsonl  # noqa: E402
 from config.schema import (  # noqa: E402
     get_path,
     resolve_config,
+    set_path,
     validate_config,
     validate_paths,
     write_resolved_config,
@@ -91,6 +92,56 @@ def normalize_percent_mode(
     return best
 
 
+def _coerce_int(value: Any, key_name: str, fallback: int, logger) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        logger.warning("invalid %s=%r; fallback to %d", key_name, value, fallback)
+        return fallback
+
+
+def resolve_numeric_tolerance(raw_config: Dict[str, Any], resolved: Dict[str, Any], logger) -> int:
+    fallback = int(get_path(resolved, "eval.numeric.tolerance", 4))
+    nested_tol = get_path(raw_config, "eval.numeric.tolerance", None)
+    legacy_tol = raw_config.get("tolerance")
+    legacy_precision = raw_config.get("precision")
+
+    if nested_tol is not None:
+        tolerance = _coerce_int(nested_tol, "eval.numeric.tolerance", fallback, logger)
+        if legacy_tol is not None or legacy_precision is not None:
+            logger.warning(
+                "both new and legacy numeric keys provided; "
+                "use eval.numeric.tolerance=%d and ignore legacy keys",
+                tolerance,
+            )
+        source = "eval.numeric.tolerance"
+    elif legacy_tol is not None:
+        tolerance = _coerce_int(legacy_tol, "tolerance", fallback, logger)
+        if legacy_precision is not None:
+            logger.warning(
+                "both legacy keys provided; use tolerance=%d and ignore precision=%r",
+                tolerance,
+                legacy_precision,
+            )
+        logger.warning(
+            "deprecated key 'tolerance' is used; please migrate to eval.numeric.tolerance"
+        )
+        source = "legacy:tolerance"
+    elif legacy_precision is not None:
+        tolerance = _coerce_int(legacy_precision, "precision", fallback, logger)
+        logger.warning(
+            "deprecated key 'precision' is used; please migrate to eval.numeric.tolerance"
+        )
+        source = "legacy:precision"
+    else:
+        tolerance = fallback
+        source = "default"
+
+    set_path(resolved, "eval.numeric.tolerance", tolerance)
+    logger.info("numeric_tolerance=%d source=%s", tolerance, source)
+    return tolerance
+
+
 def main() -> int:
     args = parse_args()
     raw_config = load_config(args.config)
@@ -148,7 +199,7 @@ def main() -> int:
     if subset_qids:
         records = [r for r in records if r.get("qid") in subset_qids]
 
-    precision = int(get_path(resolved, "eval.numeric.tolerance", 4))
+    precision = resolve_numeric_tolerance(raw_config, resolved, logger)
     normalize_mode = get_path(resolved, "eval.numeric.normalize_percent_mode", "auto")
 
     per_query_path = os.path.join(run_dir, "numeric_per_query.jsonl")
