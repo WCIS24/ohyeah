@@ -1,4 +1,4 @@
-﻿experiments:
+experiments:
   - label: pre_ft_baseline
     tag: pre_ft
     overrides:
@@ -8,13 +8,13 @@
   - label: post_ft_baseline
     tag: post_ft
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - multistep.enabled=false
       - calculator.enabled=false
   - label: post_ft_multistep_best
     tag: post_ft_ms
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - multistep.enabled=true
       - multistep.max_steps=2
       - multistep.top_k_each_step=10
@@ -26,7 +26,7 @@
   - label: post_ft_baseline_calc_best
     tag: post_ft_calc
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - multistep.enabled=false
       - calculator.enabled=true
       - calculator.gate.min_conf=0.4
@@ -35,7 +35,7 @@
   - label: post_ft_multistep_calc_best
     tag: post_ft_ms_calc
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - multistep.enabled=true
       - multistep.max_steps=2
       - multistep.top_k_each_step=10
@@ -49,7 +49,7 @@
   - label: post_ft_multistep_T1_calc_best
     tag: post_ft_ms_T1_calc
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - multistep.enabled=true
       - multistep.max_steps=1
       - multistep.top_k_each_step=10

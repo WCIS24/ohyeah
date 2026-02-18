@@ -1,4 +1,4 @@
-﻿output_dir: outputs
+output_dir: outputs
 
 data:
   processed_dir: data/processed
@@ -18,7 +18,7 @@ retriever:
   top_k: 5
   dense:
     enabled: true
-    model_name_or_path: models/retriever_ft/latest
+    model_name_or_path: models/retriever_ft/20260203_005729_cd195e
   hybrid:
     enabled: true
     alpha: 0.5

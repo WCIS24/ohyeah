@@ -1,5 +1,5 @@
 ﻿parameters:
-  retriever.dense.model_name_or_path: [models/retriever_ft/latest]
+  retriever.dense.model_name_or_path: [models/retriever_ft/20260203_005729_cd195e]
   multistep.enabled: [true]
   multistep.max_steps: [2, 3]
   multistep.top_k_each_step: [10]
