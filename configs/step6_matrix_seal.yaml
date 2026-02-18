@@ -83,6 +83,27 @@ experiments:
       - calculator.gate.min_conf=0.4
       - 'calculator.gate.allow_task_types=["yoy","diff"]'
 
+  - label: seal_mvp08b_dense_calc_gate_off
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.enabled=false
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+
+  - label: seal_mvp08c_dense_calc_minconf_02
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.2
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+
   - label: seal_mvp09_dense_multistep_calc
     tag: seal_main
     overrides:

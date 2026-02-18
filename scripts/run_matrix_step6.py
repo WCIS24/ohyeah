@@ -15,7 +15,7 @@ SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash
+from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash, write_env_versions
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,6 +78,7 @@ def main() -> int:
     runs_root = os.path.join(matrix_dir, "runs")
     ensure_dir(matrix_dir)
     ensure_dir(runs_root)
+    write_env_versions(matrix_dir)
 
     results: List[Dict[str, Any]] = []
     resolved_rows: List[Dict[str, Any]] = []

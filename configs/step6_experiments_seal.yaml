@@ -23,6 +23,9 @@ experiments:
   - label: seal_mvp08_dense_calc_allow_yoy_diff
     run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08
     group: main
+  - label: seal_mvp08b_dense_calc_gate_off
+    run_id: 20260217_174322_d71045/runs/20260217_174322_d71045_m01
+    group: ablation
   - label: seal_mvp09_dense_multistep_calc
     run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09
     group: main

@@ -19,7 +19,7 @@ from finder_rag.data import build_corpus, build_records, load_finder_csv  # noqa
 from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.metrics import exact_match, mean, recall_at_k  # noqa: E402
 from finder_rag.retrieval import TfidfRetriever  # noqa: E402
-from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
+from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash, write_env_versions  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -126,6 +126,8 @@ def main() -> int:
     git_hash = get_git_hash()
     config["git_hash"] = git_hash
     logger.info("seed=%d git_hash=%s", seed, git_hash)
+    env_path = write_env_versions(run_dir)
+    logger.info("env_versions_path=%s", env_path)
 
     try:
         finder_csv = ensure_finder_csv(config, logger)

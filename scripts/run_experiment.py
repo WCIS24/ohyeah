@@ -23,7 +23,7 @@ from config.schema import (
 )
 from finder_rag.config import load_config, save_config
 from finder_rag.logging_utils import setup_logging
-from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash
+from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash, write_env_versions
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,6 +91,8 @@ def main() -> int:
 
     git_hash = get_git_hash()
     logger.info("git_hash=%s", git_hash)
+    env_path = write_env_versions(run_dir)
+    logger.info("env_versions_path=%s", env_path)
 
     resolved = resolve_config(raw_config)
     resolved_path = write_resolved_config(resolved, run_dir)

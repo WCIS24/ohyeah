@@ -8,5 +8,6 @@
 | seal_mvp06_dense_multistep_t1 | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06 | - | - | - |
 | seal_mvp07_dense_calc_empty_allow | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07 | 0.3964 | 689.2285 | 0.6180 |
 | seal_mvp08_dense_calc_allow_yoy_diff | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08 | 0.3197 | 296.5772 | 0.6695 |
+| seal_mvp08b_dense_calc_gate_off | 20260217_174322_d71045/runs/20260217_174322_d71045_m01 | 0.2867 | 290.5812 | 0.6824 |
 | seal_mvp09_dense_multistep_calc | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09 | 0.3108 | 294.2716 | 0.6760 |
 | seal_mvp10_dense_multistep_t1_calc | 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10 | 0.3108 | 294.2716 | 0.6760 |

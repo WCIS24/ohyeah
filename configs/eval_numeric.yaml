@@ -5,5 +5,6 @@ subset_qids_path: data/subsets/dev_numeric_qids.txt
 eval:
   numeric:
     tolerance: 4
-seed: 42
+runtime:
+  seed: 42
 baseline_metrics_path: null

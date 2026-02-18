@@ -1,0 +1,141 @@
+{
+  "seal_plot_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+  "seal_plot_run_id": "20260217_180116_13588b",
+  "seal_plot_log": "outputs/20260217_180116_13588b/logs.txt",
+  "diag_plot_command": "python scripts/plot_all.py --config outputs/tmp_plot_diag.yaml",
+  "diag_plot_run_id": "20260217_171714_373022",
+  "diag_plot_log": "outputs/20260217_171714_373022/logs.txt",
+  "experiments_path": "configs/step6_experiments_seal.yaml",
+  "figures": [
+    {
+      "name": "main_results",
+      "kind": "table",
+      "enabled_in_seal": true,
+      "seal_has_data": true,
+      "diag_has_data_when_enabled": true,
+      "status": "ok",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/tables/main_results.csv",
+        "thesis/figures_seal/ThemeA/tables/main_results.tex"
+      ],
+      "root_cause": "summary.json available for listed runs; table path is healthy.",
+      "minimal_fix": "No fix needed.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "configs/step6_experiments_seal.yaml",
+        "outputs/<run_id>/summary.json"
+      ]
+    },
+    {
+      "name": "recall_mrr_curves",
+      "kind": "figure",
+      "enabled_in_seal": false,
+      "seal_has_data": null,
+      "diag_has_data_when_enabled": false,
+      "status": "disabled",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/recall_mrr_k.pdf",
+        "thesis/figures_seal/ThemeA/figures/recall_mrr_k.png"
+      ],
+      "root_cause": "plot_all parses recall@k/mrr@k from top-level metrics.json keys, but run metrics.json stores them under retrieval_full/retrieval_complex/retrieval_abbrev.",
+      "minimal_fix": "Keep disabled, or patch plot_recall_mrr_curves to read retrieval_full.* from nested metrics.json.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "configs/step6_experiments_seal.yaml (group=main)",
+        "outputs/<run_id>/metrics.json"
+      ]
+    },
+    {
+      "name": "delta_bar",
+      "kind": "figure",
+      "enabled_in_seal": false,
+      "seal_has_data": null,
+      "diag_has_data_when_enabled": false,
+      "status": "disabled",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/delta_bar.pdf",
+        "thesis/figures_seal/ThemeA/figures/delta_bar.png"
+      ],
+      "root_cause": "delta_vs_baseline.json/delta_vs_pre.json are absent in seal run root dirs, so no delta payload to plot.",
+      "minimal_fix": "Generate delta files (set baseline_metrics_path in eval scripts) or keep disabled.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "outputs/<run_id>/delta_vs_baseline.json",
+        "outputs/<run_id>/delta_vs_pre.json"
+      ]
+    },
+    {
+      "name": "ablation_breakdown",
+      "kind": "figure",
+      "enabled_in_seal": true,
+      "seal_has_data": true,
+      "diag_has_data_when_enabled": true,
+      "status": "ok",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf",
+        "thesis/figures_seal/ThemeA/figures/ablation_breakdown.png"
+      ],
+      "root_cause": "ablation group exists and summary.json exists for ablation runs.",
+      "minimal_fix": "No fix needed.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "configs/step6_experiments_seal.yaml (group=ablation)",
+        "outputs/<run_id>/summary.json"
+      ]
+    },
+    {
+      "name": "abbrev_breakdown",
+      "kind": "figure",
+      "enabled_in_seal": false,
+      "seal_has_data": null,
+      "diag_has_data_when_enabled": true,
+      "status": "disabled",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/abbrev_breakdown.pdf",
+        "thesis/figures_seal/ThemeA/figures/abbrev_breakdown.png"
+      ],
+      "root_cause": "summary.json contains retrieval_abbrev metrics; disabled in seal config by choice, not by data loss.",
+      "minimal_fix": "Enable the block if this figure is needed.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "outputs/<run_id>/summary.json (retrieval_abbrev)"
+      ]
+    },
+    {
+      "name": "numeric_errors",
+      "kind": "figure",
+      "enabled_in_seal": false,
+      "seal_has_data": null,
+      "diag_has_data_when_enabled": false,
+      "status": "disabled",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/numeric_error_dist.pdf",
+        "thesis/figures_seal/ThemeA/figures/numeric_error_dist.png"
+      ],
+      "root_cause": "numeric_errors.run_id is null in seal config, and numeric_per_query.jsonl is written in sibling *_numeric dirs, not base run dir.",
+      "minimal_fix": "Set numeric_errors.run_id to a concrete *_numeric run or patch loader to resolve from summary.runs.numeric_dev.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "outputs/<run_id>/numeric_per_query.jsonl"
+      ]
+    },
+    {
+      "name": "multistep_trace",
+      "kind": "figure",
+      "enabled_in_seal": false,
+      "seal_has_data": null,
+      "diag_has_data_when_enabled": false,
+      "status": "disabled",
+      "output_paths": [
+        "thesis/figures_seal/ThemeA/figures/multistep_trace_case.pdf",
+        "thesis/figures_seal/ThemeA/figures/multistep_trace_case.png"
+      ],
+      "root_cause": "multistep_trace.run_id is null in seal config, and traces are written in sibling *_ms dirs, not base run dir.",
+      "minimal_fix": "Set multistep_trace.run_id to a concrete *_ms run or patch loader to resolve from summary.runs.multistep.",
+      "generate_command": "python scripts/plot_all.py --config scripts/plot_config.yaml",
+      "data_sources": [
+        "outputs/<run_id>/multistep_traces.jsonl"
+      ]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ if SRC_DIR not in sys.path:
 
 from config.schema import resolve_and_validate  # noqa: E402
 from finder_rag.logging_utils import setup_logging  # noqa: E402
-from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
+from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash, write_env_versions  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,6 +35,8 @@ def main() -> int:
 
     git_hash = get_git_hash()
     logger.info("git_hash=%s", git_hash)
+    env_path = write_env_versions(run_dir)
+    logger.info("env_versions_path=%s", env_path)
 
     resolved, resolved_path, issues = resolve_and_validate(args.config, run_dir)
 

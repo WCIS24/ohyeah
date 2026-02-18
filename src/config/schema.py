@@ -216,6 +216,11 @@ def _apply_legacy_mappings(raw: Dict[str, Any], resolved: Dict[str, Any]) -> Non
         set_path(resolved, "retriever.top_k", int(raw.get("top_k")))
     if "k_values" in raw:
         set_path(resolved, "eval.k_list", list(raw.get("k_values")))
+    if "seed" in raw:
+        try:
+            set_path(resolved, "runtime.seed", int(raw.get("seed")))
+        except (TypeError, ValueError):
+            pass
 
     if "max_steps" in raw:
         set_path(resolved, "multistep.max_steps", int(raw.get("max_steps")))
