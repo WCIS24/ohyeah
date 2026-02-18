@@ -6,7 +6,7 @@ import os
 import re
 import sys
 from statistics import mean, median
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 SRC_DIR = os.path.join(ROOT_DIR, "src")
@@ -27,6 +27,10 @@ from config.schema import (  # noqa: E402
 )
 
 NUMBER_RE = re.compile(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?")
+RESULT_TAG_VALUE_RE = re.compile(
+    r"(?i)\b(?:result|answer)\s*[:=]\s*([-+]?\d+(?:,\d{3})*(?:\.\d+)?)"
+)
+VALID_EXTRACT_STRATEGIES = {"first", "last", "result_tag"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -142,6 +146,67 @@ def resolve_numeric_tolerance(raw_config: Dict[str, Any], resolved: Dict[str, An
     return tolerance
 
 
+def resolve_extract_strategy(raw_config: Dict[str, Any], resolved: Dict[str, Any], logger) -> str:
+    raw_strategy = get_path(raw_config, "eval.numeric.extract_strategy", None)
+    default_strategy = str(get_path(resolved, "eval.numeric.extract_strategy", "first"))
+    strategy = raw_strategy if raw_strategy is not None else default_strategy
+
+    if not isinstance(strategy, str):
+        logger.warning("invalid eval.numeric.extract_strategy=%r; fallback to 'first'", strategy)
+        strategy = "first"
+    strategy = strategy.strip().lower()
+    if strategy not in VALID_EXTRACT_STRATEGIES:
+        logger.warning(
+            "unsupported eval.numeric.extract_strategy=%r; allowed=%s; fallback to 'first'",
+            strategy,
+            sorted(VALID_EXTRACT_STRATEGIES),
+        )
+        strategy = "first"
+    set_path(resolved, "eval.numeric.extract_strategy", strategy)
+    logger.info("numeric_extract_strategy=%s", strategy)
+    return strategy
+
+
+def extract_result_tag_number(text: str) -> Optional[Dict[str, object]]:
+    if not text:
+        return None
+    match = RESULT_TAG_VALUE_RE.search(text)
+    if match is None:
+        return None
+    num_str = match.group(1).replace(",", "")
+    try:
+        value = float(num_str)
+    except ValueError:
+        return None
+    window = text[match.end(1) : match.end(1) + 8]
+    is_percent = "%" in window or "percent" in window.lower()
+    return {"value": value, "is_percent": is_percent}
+
+
+def pick_number(
+    text: str,
+    numbers: List[Dict[str, object]],
+    strategy: str,
+) -> Tuple[Optional[Dict[str, object]], str]:
+    if not numbers:
+        return None, "missing"
+    if strategy == "first":
+        return numbers[0], "first"
+    if strategy == "last":
+        return numbers[-1], "last"
+    tagged = extract_result_tag_number(text)
+    if tagged is not None:
+        return tagged, "result_tag"
+    return numbers[0], "result_tag_fallback_first"
+
+
+def snippet(text: str, max_len: int = 180) -> str:
+    compact = " ".join((text or "").split())
+    if len(compact) <= max_len:
+        return compact
+    return compact[: max_len - 3] + "..."
+
+
 def main() -> int:
     args = parse_args()
     raw_config = load_config(args.config)
@@ -201,6 +266,9 @@ def main() -> int:
 
     precision = resolve_numeric_tolerance(raw_config, resolved, logger)
     normalize_mode = get_path(resolved, "eval.numeric.normalize_percent_mode", "auto")
+    extract_strategy = resolve_extract_strategy(raw_config, resolved, logger)
+    write_per_query = bool(get_path(resolved, "eval.numeric.write_per_query", True))
+    logger.info("write_numeric_per_query=%s", write_per_query)
 
     per_query_path = os.path.join(run_dir, "numeric_per_query.jsonl")
     em_list: List[int] = []
@@ -212,7 +280,8 @@ def main() -> int:
     multi_pred = 0
     multi_gold = 0
 
-    with open(per_query_path, "w", encoding="utf-8") as f:
+    per_query_file = open(per_query_path, "w", encoding="utf-8") if write_per_query else None
+    try:
         for rec in records:
             qid = rec.get("qid")
             gold = rec.get("answer", "")
@@ -226,8 +295,8 @@ def main() -> int:
             if len(pred_nums) > 1:
                 multi_pred += 1
 
-            gold_val = gold_nums[0] if gold_nums else None
-            pred_val = pred_nums[0] if pred_nums else None
+            gold_val, gold_strategy_used = pick_number(gold, gold_nums, extract_strategy)
+            pred_val, pred_strategy_used = pick_number(pred, pred_nums, extract_strategy)
 
             extracted_ok = pred_val is not None
             if pred_val is None:
@@ -248,21 +317,32 @@ def main() -> int:
                 rel_errors.append(rel_err)
                 em_list.append(em)
 
-            f.write(
-                json.dumps(
-                    {
-                        "qid": qid,
-                        "gold_num": gold_val["value"] if gold_val is not None else None,
-                        "pred_num": pred_val["value"] if pred_val is not None else None,
-                        "abs_err": abs_err,
-                        "rel_err": rel_err,
-                        "numeric_em": em,
-                        "extracted_ok": extracted_ok,
-                    },
-                    ensure_ascii=False,
+            if per_query_file is not None:
+                per_query_file.write(
+                    json.dumps(
+                        {
+                            "qid": qid,
+                            "gold_number": gold_val["value"] if gold_val is not None else None,
+                            "pred_number": pred_val["value"] if pred_val is not None else None,
+                            "gold_num": gold_val["value"] if gold_val is not None else None,
+                            "pred_num": pred_val["value"] if pred_val is not None else None,
+                            "strategy_used": pred_strategy_used,
+                            "gold_strategy_used": gold_strategy_used,
+                            "extract_strategy": extract_strategy,
+                            "em": em,
+                            "numeric_em": em,
+                            "abs_err": abs_err,
+                            "rel_err": rel_err,
+                            "extracted_ok": extracted_ok,
+                            "pred_text_snippet": snippet(pred),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
                 )
-                + "\n"
-            )
+    finally:
+        if per_query_file is not None:
+            per_query_file.close()
 
     coverage = 1.0 - (missing_pred / len(records)) if records else 0.0
     metrics = {
@@ -278,6 +358,8 @@ def main() -> int:
         "multi_pred": multi_pred,
         "multi_gold": multi_gold,
         "predictions_path": predictions_path,
+        "extract_strategy": extract_strategy,
+        "write_per_query": write_per_query,
     }
 
     metrics_path = os.path.join(run_dir, "numeric_metrics.json")

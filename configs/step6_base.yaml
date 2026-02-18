@@ -82,6 +82,8 @@ eval:
     tolerance: 4
     rel_eps: 1.0e-9
     normalize_percent_mode: auto
+    extract_strategy: first
+    write_per_query: true
 
 runtime:
   seed: 42

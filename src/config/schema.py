@@ -75,7 +75,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "abbrev_path": "data/subsets/dev_abbrev_qids.txt",
             "numeric_path": "data/subsets/dev_numeric_qids.txt",
         },
-        "numeric": {"tolerance": 4, "rel_eps": 1e-9, "normalize_percent_mode": "auto"},
+        "numeric": {
+            "tolerance": 4,
+            "rel_eps": 1e-9,
+            "normalize_percent_mode": "auto",
+            "extract_strategy": "first",
+            "write_per_query": True,
+        },
     },
     "runtime": {"seed": 42, "max_samples": None, "num_workers": 1, "device": None},
 }
@@ -144,6 +150,8 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "eval.numeric.tolerance": (int,),
     "eval.numeric.rel_eps": (float, int),
     "eval.numeric.normalize_percent_mode": (str,),
+    "eval.numeric.extract_strategy": (str,),
+    "eval.numeric.write_per_query": (bool,),
     "runtime.seed": (int,),
     "runtime.max_samples": (int, type(None)),
     "runtime.num_workers": (int,),

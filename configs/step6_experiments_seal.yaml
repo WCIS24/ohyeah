@@ -50,3 +50,12 @@ experiments:
   - label: seal_mvp10_dense_multistep_t1_calc
     run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10
     group: ablation
+  - label: m11_pqe
+    run_id: 20260218_120310_8bc565/runs/20260218_120310_8bc565_m02
+    group: main
+  - label: m12_pqe_abbrev_only
+    run_id: 20260218_120310_8bc565/runs/20260218_120310_8bc565_m03
+    group: ablation
+  - label: m13_pqe_calc
+    run_id: 20260218_120310_8bc565/runs/20260218_120310_8bc565_m04
+    group: ablation

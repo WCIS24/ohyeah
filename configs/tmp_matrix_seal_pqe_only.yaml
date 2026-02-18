@@ -1,0 +1,65 @@
+﻿experiments:
+  - label: m02_dense_baseline_v2
+    tag: seal_main
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=false
+      - qexpand.enabled=false
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: m11_pqe
+    tag: seal_main
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=false
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: m12_pqe_abbrev_only
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=false
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=false
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: m13_pqe_calc
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt

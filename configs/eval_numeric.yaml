@@ -5,6 +5,8 @@ subset_qids_path: data/subsets/dev_numeric_qids.txt
 eval:
   numeric:
     tolerance: 4
+    extract_strategy: first
+    write_per_query: true
 runtime:
   seed: 42
 baseline_metrics_path: null
