@@ -196,8 +196,10 @@ python scripts/plot_all.py --config scripts/plot_config.yaml
 
 ## 6) Risk statement
 
-1. `latest` model pointer drift risk remains unless Action 4 is applied.
-   Evidence: `configs/step6_matrix_seal.yaml:14`.
+1. Retriever model pointer drift has been mitigated by Action 4
+   (`latest` -> immutable version path), but historical runs still used `latest`.
+   Evidence: `configs/step6_matrix_seal.yaml:14`,
+   `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05_ms/logs.txt:5`.
 2. Calculator numeric gains are currently confounded by heavy fallback gating;
    results can flip with small gate changes.
    Evidence: `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08_calc/calc_stats.json:16`.
@@ -273,3 +275,86 @@ Evidence log:
 
 Status impact:
 - Action2 did not reduce calculator fallback bottleneck, so global seal decision remains `No`.
+
+---
+
+## 10) Execution update (Action 3 done, not closing multistep)
+
+Action executed:
+- Added `seal_mvp05b_dense_multistep_gate_open` and
+  `seal_mvp06b_dense_multistep_t1_gate_open` in `configs/step6_matrix_seal.yaml`
+  with `multistep.gate.min_gap_conf=0.0`.
+- Ran smoke precheck:
+  `python scripts/smoke.py --config configs/smoke.yaml --run-id a9_action3_smoke`
+  (evidence: `outputs/a9_action3_smoke/logs.txt:1`).
+- Ran pair matrix:
+  `python scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix outputs/tmp_matrix_action3_m05b_m06b.yaml`.
+
+Run artifacts:
+- matrix: `outputs/20260218_023916_906096/matrix.json:2`
+- m05b summary: `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01/summary.json:2`
+- m06b summary: `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02/summary.json:2`
+
+m05/m06 vs m05b/m06b comparison:
+- m05 full/complex MRR@10 unchanged:
+  `0.255595 / 0.296471` -> `0.255595 / 0.296471`
+- m06 full/complex MRR@10 unchanged:
+  `0.255448 / 0.296128` -> `0.255448 / 0.296128`
+- avg_steps unchanged:
+  `m05 1.081 -> m05b 1.081`, `m06 1.000 -> m06b 1.000`
+
+Evidence:
+- `outputs/seal_checks/action3_multistep_compare.json:2`
+- `outputs/seal_checks/action3_multistep_compare.json:47`
+
+Status impact:
+- Action3 executed successfully, but did not improve multistep effect size.
+
+---
+
+## 11) Execution update (Action 4/5/6 done)
+
+Action 4 (lock retriever path):
+- Replaced all `models/retriever_ft/latest` in seal matrix with immutable
+  `models/retriever_ft/20260203_005729_cd195e`.
+- Evidence: `configs/step6_matrix_seal.yaml:14`,
+  `configs/step6_matrix_seal.yaml:41`,
+  `configs/step6_matrix_seal.yaml:154`.
+
+Action 5 (update experiments + regenerate tables):
+- Updated `configs/step6_experiments_seal.yaml` with new runs:
+  `m05b`, `m06b`, `m08c`.
+- Evidence: `configs/step6_experiments_seal.yaml:20`,
+  `configs/step6_experiments_seal.yaml:23`,
+  `configs/step6_experiments_seal.yaml:35`.
+- Ran:
+  `python scripts/make_tables.py --experiments configs/step6_experiments_seal.yaml`
+- Table evidence:
+  `docs/TABLE_MAIN.md:9`,
+  `docs/TABLE_ABLATION.md:4`,
+  `docs/TABLE_NUMERIC.md:14`.
+
+Action 6 (plot_all acceptance):
+- Ran:
+  `python scripts/plot_all.py --config scripts/plot_config.yaml`
+- Enabled figure has data:
+  `outputs/20260218_024755_ad935b/logs.txt:8` (`has_data=True`).
+- Main result table rendered with 14 runs:
+  `outputs/20260218_024755_ad935b/logs.txt:7`.
+- Disabled figures remain disabled by config (not a failure):
+  `scripts/plot_config.yaml:46`,
+  `scripts/plot_config.yaml:54`,
+  `scripts/plot_config.yaml:66`,
+  `scripts/plot_config.yaml:73`,
+  `scripts/plot_config.yaml:80`.
+
+---
+
+## 12) Decision refresh after Action 3-6
+
+- Traceability, tables, plotting, and model path freeze are now in good state.
+- Core closure still fails on two scientific gates:
+  1) calculator fallback remains high (`m08`/`m08c`);
+  2) multistep ablation effect remains negligible (`m05/m06` vs `m05b/m06b`).
+
+Final seal decision remains: **No**.

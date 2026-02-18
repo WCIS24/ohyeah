@@ -226,3 +226,40 @@ Source: `scripts/run_with_calculator.py:271` 到 `scripts/run_with_calculator.py
 判定：
 - Action2 未通过（`min_conf` 下调对当前瓶颈无效，m08c 与 m08 指标完全一致）；
 - 当前主要阻断仍在 `allow_task_types` + 任务识别分布导致的 `gate_task` 大规模触发。
+
+---
+
+## 8) 2026-02-18 Action3 执行更新（m05b/m06b multistep gate-open）
+
+执行内容：
+- 在 `configs/step6_matrix_seal.yaml` 新增：
+  - `seal_mvp05b_dense_multistep_gate_open`
+  - `seal_mvp06b_dense_multistep_t1_gate_open`
+  并将两者 `multistep.gate.min_gap_conf=0.0`。
+- one-run pair matrix：
+  `python scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix outputs/tmp_matrix_action3_m05b_m06b.yaml`
+  （证据：`outputs/20260218_023916_906096/matrix.json:2`）。
+
+关键结果（old vs new）：
+
+| 对照 | Full MRR@10 | Complex MRR@10 | avg_steps | stop_reasons |
+|---|---:|---:|---:|---|
+| m05_old (`gate=0.3`) | 0.255595 | 0.296471 | 1.081 | `MAX_STEPS=45, GATE_BLOCKED=525` |
+| m05b_new (`gate=0.0`) | 0.255595 | 0.296471 | 1.081 | `MAX_STEPS=45, GATE_BLOCKED=525` |
+| m06_old (`gate=0.3`) | 0.255448 | 0.296128 | 1.000 | `MAX_STEPS=46, GATE_BLOCKED=524` |
+| m06b_new (`gate=0.0`) | 0.255448 | 0.296128 | 1.000 | `MAX_STEPS=46, GATE_BLOCKED=524` |
+
+证据：
+- 汇总对照：
+  `outputs/seal_checks/action3_multistep_compare.json:2`
+  `outputs/seal_checks/action3_multistep_compare.json:32`
+- m05b multistep 日志：
+  `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01_ms/logs.txt:8`
+  `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01_ms/logs.txt:9`
+- m06b multistep 日志：
+  `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02_ms/logs.txt:8`
+  `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02_ms/logs.txt:9`
+
+判定：
+- Action3 已执行但未形成有效提升证据；
+- 现阶段 multistep 的收益仍然仅为极小量级（与旧 run 完全一致）。

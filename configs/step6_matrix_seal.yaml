@@ -11,7 +11,7 @@ experiments:
   - label: seal_mvp02_dense_singlestep
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - retriever.hybrid.alpha=0.5
       - multistep.enabled=false
@@ -20,7 +20,7 @@ experiments:
   - label: seal_mvp03_bm25_singlestep
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=bm25
       - retriever.hybrid.alpha=0.5
       - multistep.enabled=false
@@ -29,7 +29,7 @@ experiments:
   - label: seal_mvp04_hybrid_singlestep
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=hybrid
       - retriever.hybrid.alpha=0.5
       - multistep.enabled=false
@@ -38,7 +38,7 @@ experiments:
   - label: seal_mvp05_dense_multistep
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=true
       - multistep.max_steps=2
@@ -52,7 +52,7 @@ experiments:
   - label: seal_mvp06_dense_multistep_t1
     tag: seal_ablation
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=true
       - multistep.max_steps=1
@@ -63,10 +63,38 @@ experiments:
       - multistep.gate.min_gap_conf=0.3
       - calculator.enabled=false
 
+  - label: seal_mvp05b_dense_multistep_gate_open
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=true
+      - multistep.max_steps=2
+      - multistep.top_k_each_step=10
+      - multistep.novelty_threshold=0.0
+      - multistep.stop_no_new_steps=1
+      - multistep.merge_strategy=step1_first
+      - multistep.gate.min_gap_conf=0.0
+      - calculator.enabled=false
+
+  - label: seal_mvp06b_dense_multistep_t1_gate_open
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=true
+      - multistep.max_steps=1
+      - multistep.top_k_each_step=10
+      - multistep.novelty_threshold=0.0
+      - multistep.stop_no_new_steps=1
+      - multistep.merge_strategy=step1_first
+      - multistep.gate.min_gap_conf=0.0
+      - calculator.enabled=false
+
   - label: seal_mvp07_dense_calc_empty_allow
     tag: seal_ablation
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=false
       - calculator.enabled=true
@@ -76,7 +104,7 @@ experiments:
   - label: seal_mvp08_dense_calc_allow_yoy_diff
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=false
       - calculator.enabled=true
@@ -86,7 +114,7 @@ experiments:
   - label: seal_mvp08b_dense_calc_gate_off
     tag: seal_ablation
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=false
       - calculator.enabled=true
@@ -97,7 +125,7 @@ experiments:
   - label: seal_mvp08c_dense_calc_minconf_02
     tag: seal_ablation
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=false
       - calculator.enabled=true
@@ -107,7 +135,7 @@ experiments:
   - label: seal_mvp09_dense_multistep_calc
     tag: seal_main
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=true
       - multistep.max_steps=2
@@ -123,7 +151,7 @@ experiments:
   - label: seal_mvp10_dense_multistep_t1_calc
     tag: seal_ablation
     overrides:
-      - retriever.dense.model_name_or_path=models/retriever_ft/latest
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
       - retriever.mode=dense
       - multistep.enabled=true
       - multistep.max_steps=1
