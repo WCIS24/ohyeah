@@ -23,6 +23,12 @@ experiments:
   - label: seal_mvp06b_dense_multistep_t1_gate_open
     run_id: 20260218_023916_906096/runs/20260218_023916_906096_m02
     group: ablation
+  - label: seal_mvp05c_dense_multistep_gate_disabled
+    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m01
+    group: ablation
+  - label: seal_mvp06c_dense_multistep_t1_gate_disabled
+    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m02
+    group: ablation
   - label: seal_mvp07_dense_calc_empty_allow
     run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07
     group: ablation
@@ -34,6 +40,9 @@ experiments:
     group: ablation
   - label: seal_mvp08c_dense_calc_minconf_02
     run_id: 20260218_012802_326769/runs/20260218_012802_326769_m01
+    group: ablation
+  - label: seal_mvp08d_dense_calc_expand_tasks
+    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m03
     group: ablation
   - label: seal_mvp09_dense_multistep_calc
     run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09

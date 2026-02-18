@@ -319,11 +319,11 @@ Action 4 (lock retriever path):
   `models/retriever_ft/20260203_005729_cd195e`.
 - Evidence: `configs/step6_matrix_seal.yaml:14`,
   `configs/step6_matrix_seal.yaml:41`,
-  `configs/step6_matrix_seal.yaml:154`.
+  `configs/step6_matrix_seal.yaml:194`.
 
 Action 5 (update experiments + regenerate tables):
 - Updated `configs/step6_experiments_seal.yaml` with new runs:
-  `m05b`, `m06b`, `m08c`.
+  `m05b`, `m06b`, `m08c` (and later extended with `m05c`, `m06c`, `m08d`).
 - Evidence: `configs/step6_experiments_seal.yaml:20`,
   `configs/step6_experiments_seal.yaml:23`,
   `configs/step6_experiments_seal.yaml:35`.
@@ -358,3 +358,65 @@ Action 6 (plot_all acceptance):
   2) multistep ablation effect remains negligible (`m05/m06` vs `m05b/m06b`).
 
 Final seal decision remains: **No**.
+
+---
+
+## 13) Execution update (Action 3 extension + calculator convergence)
+
+Action executed:
+- Added `m05c/m06c` with `multistep.gate.enabled=false` and
+  `m08d` with expanded calculator task allow-list.
+- Ran smoke precheck:
+  `python scripts/smoke.py --config configs/smoke.yaml --run-id a10_action3ext_smoke`
+  (evidence: `outputs/a10_action3ext_smoke/logs.txt:1`).
+- Ran extension matrix:
+  `python scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix outputs/tmp_matrix_action3ext_m05c_m06c_m08d.yaml`.
+
+Run artifacts:
+- matrix: `outputs/20260218_032001_2056e7/matrix.json:2`
+- m05c: `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01/summary.json:2`
+- m06c: `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m02/summary.json:2`
+- m08d: `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03/summary.json:2`
+
+Multistep result impact:
+- `m05 -> m05c`: MRR and avg_steps did not improve; stop reason switched to `NO_GAP=570`.
+- `m06 -> m06c`: effectively unchanged.
+- Evidence:
+  `outputs/seal_checks/action3ext_multistep_compare.json:2`,
+  `outputs/seal_checks/action3ext_multistep_compare.json:61`,
+  `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01_ms/logs.txt:9`.
+
+Calculator result impact:
+- `m08 -> m08d`: `gate_task` ratio `0.815789 -> 0.757895`,
+  fallback `0.859649 -> 0.805263`, coverage `0.669528 -> 0.682403`,
+  but EM drops `0.319728 -> 0.293333`.
+- Evidence:
+  `outputs/seal_checks/action3ext_calc_compare.json:2`,
+  `outputs/seal_checks/action3ext_calc_compare.json:72`.
+
+Tables/plots refresh:
+- Updated experiments file now includes 17 runs including `m05c/m06c/m08d`:
+  `configs/step6_experiments_seal.yaml:26`,
+  `configs/step6_experiments_seal.yaml:29`,
+  `configs/step6_experiments_seal.yaml:44`.
+- `make_tables` rerun: `docs/TABLE_MAIN.md:11`, `docs/TABLE_MAIN.md:17`.
+- `plot_all` rerun: `outputs/20260218_034322_f50f97/logs.txt:5`,
+  enabled figure `has_data=True` at `outputs/20260218_034322_f50f97/logs.txt:8`.
+
+Status impact:
+- Engineering chain remains stable and reproducible.
+- Scientific closure still not met for both multistep and calculator.
+- Final seal decision remains: **No**.
+
+---
+
+## 14) Open decision required (for final seal scope)
+
+Current evidence suggests:
+- `multistep` does not provide measurable gains in current implementation scope;
+- `calculator` can improve coverage but still has high fallback and unstable EM tradeoff.
+
+Please confirm one of the two seal strategies:
+1. Keep both modules as main-claim modules and continue iteration (do not seal now).
+2. Downgrade one or both modules to "diagnostic/future work", freeze core retrieval results,
+   and proceed to sealed plotting/reporting for stable parts.

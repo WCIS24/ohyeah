@@ -91,6 +91,36 @@ experiments:
       - multistep.gate.min_gap_conf=0.0
       - calculator.enabled=false
 
+  - label: seal_mvp05c_dense_multistep_gate_disabled
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=true
+      - multistep.max_steps=2
+      - multistep.top_k_each_step=10
+      - multistep.novelty_threshold=0.0
+      - multistep.stop_no_new_steps=1
+      - multistep.merge_strategy=step1_first
+      - multistep.gate.enabled=false
+      - multistep.gate.min_gap_conf=0.0
+      - calculator.enabled=false
+
+  - label: seal_mvp06c_dense_multistep_t1_gate_disabled
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=true
+      - multistep.max_steps=1
+      - multistep.top_k_each_step=10
+      - multistep.novelty_threshold=0.0
+      - multistep.stop_no_new_steps=1
+      - multistep.merge_strategy=step1_first
+      - multistep.gate.enabled=false
+      - multistep.gate.min_gap_conf=0.0
+      - calculator.enabled=false
+
   - label: seal_mvp07_dense_calc_empty_allow
     tag: seal_ablation
     overrides:
@@ -131,6 +161,16 @@ experiments:
       - calculator.enabled=true
       - calculator.gate.min_conf=0.2
       - 'calculator.gate.allow_task_types=["yoy","diff"]'
+
+  - label: seal_mvp08d_dense_calc_expand_tasks
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.2
+      - 'calculator.gate.allow_task_types=["yoy","diff","share","multiple"]'
 
   - label: seal_mvp09_dense_multistep_calc
     tag: seal_main

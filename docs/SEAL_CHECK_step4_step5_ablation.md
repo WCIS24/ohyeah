@@ -263,3 +263,56 @@ Source: `scripts/run_with_calculator.py:271` 到 `scripts/run_with_calculator.py
 判定：
 - Action3 已执行但未形成有效提升证据；
 - 现阶段 multistep 的收益仍然仅为极小量级（与旧 run 完全一致）。
+
+---
+
+## 9) 2026-02-18 Action3 拓展（m05c/m06c gate disabled）+ Calculator 收敛（m08d）
+
+执行内容：
+- 新增 `m05c/m06c`：`multistep.gate.enabled=false`（并保留 `min_gap_conf=0.0`）。
+- 新增 `m08d`：`calculator.gate.allow_task_types=["yoy","diff","share","multiple"]`。
+- 运行矩阵：
+  `python scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix outputs/tmp_matrix_action3ext_m05c_m06c_m08d.yaml`
+  （证据：`outputs/20260218_032001_2056e7/matrix.json:2`）。
+
+### 9.1 Multistep 结果（m05/m06 vs m05c/m06c）
+
+| 对照 | Full MRR@10 | Complex MRR@10 | avg_steps | stop_reasons |
+|---|---:|---:|---:|---|
+| m05 (`gate=0.3`) | 0.255595 | 0.296471 | 1.081 | `MAX_STEPS=45, GATE_BLOCKED=525` |
+| m05c (`gate.enabled=false`) | 0.255448 | 0.296128 | 1.000 | `NO_GAP=570` |
+| m06 (`gate=0.3`) | 0.255448 | 0.296128 | 1.000 | `MAX_STEPS=46, GATE_BLOCKED=524` |
+| m06c (`gate.enabled=false`) | 0.255448 | 0.296128 | 1.000 | `NO_GAP=570` |
+
+证据：
+- 汇总：
+  `outputs/seal_checks/action3ext_multistep_compare.json:2`
+  `outputs/seal_checks/action3ext_multistep_compare.json:61`
+- m05c stop reason：
+  `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01_ms/logs.txt:9`
+- m06c stop reason：
+  `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m02_ms/logs.txt:9`
+
+判定：
+- 关闭 gate 后，`GATE_BLOCKED` 消失但被 `NO_GAP` 100% 终止替代；
+- 指标未提升，且 m05 反而小幅下降，multistep 仍未形成“有效模块”证据。
+
+### 9.2 Calculator 结果（m08/m08c vs m08d）
+
+| Run | gate_task_ratio | fallback_ratio | coverage | numeric_em |
+|---|---:|---:|---:|---:|
+| m08 | 0.815789 | 0.859649 | 0.669528 | 0.319728 |
+| m08c | 0.815789 | 0.859649 | 0.669528 | 0.319728 |
+| m08d | 0.757895 | 0.805263 | 0.682403 | 0.293333 |
+
+证据：
+- 汇总：
+  `outputs/seal_checks/action3ext_calc_compare.json:2`
+  `outputs/seal_checks/action3ext_calc_compare.json:72`
+- m08d 任务分布与 gate_task：
+  `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03_calc/calc_stats.json:10`
+  `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03_calc/calc_stats.json:17`
+
+判定：
+- 扩展任务白名单后，`gate_task` 与总 fallback 有下降，coverage 有提升；
+- 但 fallback 仍高（约 80.5%）且 EM 下降，calculator 仍未达到可封条的稳定收益标准。
