@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import os
 import random
@@ -18,6 +19,7 @@ from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
 import numpy as np  # noqa: E402
 from retrieval.eval_utils import compute_retrieval_metrics  # noqa: E402
+from retrieval.query_expansion import build_query_expander_from_config  # noqa: E402
 from retrieval.retriever import HybridRetriever  # noqa: E402
 from config.schema import (  # noqa: E402
     get_path,
@@ -65,6 +67,40 @@ def load_subset(path: Optional[str]) -> Optional[set[str]]:
             if qid:
                 qids.add(qid)
     return qids
+
+
+def summarize_qexpand(per_query: List[Dict[str, Any]]) -> Dict[str, Any]:
+    total = len(per_query)
+    expanded = 0
+    abbrev_count = 0
+    prf_year_count = 0
+    num_queries_counter: Counter[int] = Counter()
+    total_query_variants = 0
+
+    for row in per_query:
+        trace = row.get("qexpand", {}) if isinstance(row.get("qexpand"), dict) else {}
+        num_q = int(trace.get("num_queries", 1))
+        total_query_variants += num_q
+        num_queries_counter[num_q] += 1
+        if trace.get("expanded"):
+            expanded += 1
+        if trace.get("abbrev_added"):
+            abbrev_count += 1
+        if trace.get("prf_year_added"):
+            prf_year_count += 1
+
+    avg_num_queries = (total_query_variants / total) if total else 0.0
+    avg_extra_queries = ((total_query_variants - total) / total) if total else 0.0
+    return {
+        "total_queries": total,
+        "queries_expanded": expanded,
+        "expansion_ratio": expanded / total if total else 0.0,
+        "avg_num_queries": avg_num_queries,
+        "avg_extra_queries": avg_extra_queries,
+        "abbrev_expanded_count": abbrev_count,
+        "prf_year_expanded_count": prf_year_count,
+        "num_queries_histogram": {str(k): v for k, v in sorted(num_queries_counter.items())},
+    }
 
 
 def main() -> int:
@@ -128,6 +164,15 @@ def main() -> int:
         batch_size=int(retriever_cfg.get("batch_size", 32)),
     )
     retriever.build_index(corpus_chunks)
+    qexpand_cfg = get_path(resolved, "qexpand", {}) or {}
+    qexpand_enabled = False
+    expander = build_query_expander_from_config(resolved)
+    if expander is not None:
+        retriever.set_query_expander(
+            expander,
+            qexpand_cfg if isinstance(qexpand_cfg, dict) else {},
+        )
+        qexpand_enabled = True
 
     k_values = [int(k) for k in get_path(resolved, "eval.k_list", [1, 5, 10])]
     mode = get_path(resolved, "retriever.mode", "hybrid")
@@ -141,6 +186,12 @@ def main() -> int:
         alpha,
         chunk_size,
         overlap,
+    )
+    logger.info(
+        "qexpand_enabled=%s max_queries=%s boost=%s",
+        qexpand_enabled,
+        get_path(resolved, "qexpand.max_queries", None),
+        get_path(resolved, "qexpand.boost", None),
     )
     metrics, per_query = compute_retrieval_metrics(
         eval_records=eval_records,
@@ -158,6 +209,13 @@ def main() -> int:
     with open(per_query_path, "w", encoding="utf-8") as f:
         for row in per_query:
             f.write(json.dumps(row) + "\n")
+
+    if qexpand_enabled:
+        stats = summarize_qexpand(per_query)
+        qexpand_path = os.path.join(run_dir, "qexpand_stats.json")
+        with open(qexpand_path, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2)
+        logger.info("qexpand_stats=%s", stats)
 
     with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
         f.write(f"{git_hash}\n")

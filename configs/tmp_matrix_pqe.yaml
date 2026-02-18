@@ -1,0 +1,23 @@
+experiments:
+  - label: tmp_dense_baseline
+    tag: tmp_pqe
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=false
+      - qexpand.enabled=false
+
+  - label: tmp_dense_pqe
+    tag: tmp_pqe
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=false
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true

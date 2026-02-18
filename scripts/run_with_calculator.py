@@ -20,6 +20,7 @@ from calculator.extract import extract_facts_from_text  # noqa: E402
 from finder_rag.config import load_config, save_config  # noqa: E402
 from finder_rag.logging_utils import setup_logging  # noqa: E402
 from finder_rag.utils import ensure_dir, generate_run_id, get_git_hash  # noqa: E402
+from retrieval.query_expansion import build_query_expander_from_config  # noqa: E402
 from retrieval.retriever import HybridRetriever  # noqa: E402
 from training.pairs import load_jsonl  # noqa: E402
 from config.schema import (  # noqa: E402
@@ -82,6 +83,10 @@ def build_retriever(config: Dict[str, Any]) -> HybridRetriever:
     corpus_path = os.path.join(corpus_dir, corpus_file)
     corpus_chunks = load_jsonl(corpus_path)
     retriever.build_index(corpus_chunks)
+    expander = build_query_expander_from_config(config)
+    if expander is not None:
+        qexpand_cfg = get_path(config, "qexpand", {}) or {}
+        retriever.set_query_expander(expander, qexpand_cfg if isinstance(qexpand_cfg, dict) else {})
     return retriever
 
 
@@ -169,6 +174,12 @@ def main() -> int:
         get_path(resolved, "retriever.dense.model_name_or_path"),
         chunk_size,
         overlap,
+    )
+    logger.info(
+        "qexpand_enabled=%s max_queries=%s boost=%s",
+        bool(get_path(resolved, "qexpand.enabled", False)),
+        get_path(resolved, "qexpand.max_queries", None),
+        get_path(resolved, "qexpand.boost", None),
     )
 
     extract_total = 0

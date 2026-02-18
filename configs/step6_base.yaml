@@ -61,6 +61,17 @@ calculator:
       b: 1000000000
     output_percent: true
 
+qexpand:
+  enabled: false
+  max_queries: 3
+  boost: 0.15
+  seed_top_k: 5
+  abbrev:
+    enabled: true
+    dict_path: null
+  prf_year:
+    enabled: true
+
 eval:
   k_list: [1, 5, 10]
   subsets:

@@ -57,6 +57,12 @@ def compute_retrieval_metrics(
             continue
 
         results = retriever.retrieve(rec.get("query", ""), top_k=k_max, alpha=alpha, mode=mode)
+        qexpand_trace = {}
+        if hasattr(retriever, "get_last_qexpand_trace"):
+            try:
+                qexpand_trace = retriever.get_last_qexpand_trace() or {}
+            except Exception:
+                qexpand_trace = {}
         hits = []
         matched_ids_by_rank: List[Optional[int]] = []
         used_fallback = False
@@ -91,6 +97,7 @@ def compute_retrieval_metrics(
                     list({ev_id for ev_id in matched_ids_by_rank if ev_id is not None})
                 ),
                 "used_fallback": used_fallback,
+                "qexpand": qexpand_trace,
             }
         )
 
