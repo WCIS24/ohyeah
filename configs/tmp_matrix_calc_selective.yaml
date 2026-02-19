@@ -1,0 +1,105 @@
+experiments:
+  - label: calc_selective_s0_baseline
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.selective.enabled=false
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_selective_s1_pre_gate_only
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.selective.enabled=true
+      - calculator.selective.pre_gate.enabled=true
+      - calculator.selective.evidence_gate.enabled=false
+      - calculator.selective.post_gate.enabled=false
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_selective_s2_strict_gates
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.selective.enabled=true
+      - calculator.selective.pre_gate.enabled=true
+      - calculator.selective.evidence_gate.enabled=true
+      - calculator.selective.post_gate.enabled=true
+      - calculator.selective.evidence_gate.strict_year=true
+      - calculator.selective.evidence_gate.require_unit_consistency=true
+      - calculator.selective.post_gate.yoy_abs_max=1000.0
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_selective_s3_strict_plus_lookup
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.tasks.enable_lookup=true
+      - calculator.selective.enabled=true
+      - calculator.selective.pre_gate.enabled=true
+      - calculator.selective.evidence_gate.enabled=true
+      - calculator.selective.post_gate.enabled=true
+      - calculator.selective.lookup.require_explicit_year=true
+      - calculator.selective.evidence_gate.strict_year=true
+      - calculator.selective.evidence_gate.require_unit_consistency=true
+      - calculator.selective.post_gate.yoy_abs_max=1000.0
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff","lookup"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt

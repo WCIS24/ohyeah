@@ -24,3 +24,7 @@
 | calc_closure_c1_scored_hard | 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m02 | 0.3423 | 654.7394 | 0.6695 |
 | calc_closure_c2_scored_soft | 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m03 | 0.3113 | 288.7420 | 0.6867 |
 | calc_closure_c3_scored_soft_retry | 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m04 | 0.3113 | 290.7680 | 0.6867 |
+| calc_selective_s0_baseline | 20260219_104111_d805c6/runs/20260219_104111_d805c6_m01 | 0.3079 | 288.1516 | 0.6867 |
+| calc_selective_s1_pre_gate_only | 20260219_104111_d805c6/runs/20260219_104111_d805c6_m02 | 0.1131 | 405.3828 | 0.6073 |
+| calc_selective_s2_strict_gates | 20260219_104111_d805c6/runs/20260219_104111_d805c6_m03 | 0.1062 | 406.7855 | 0.6052 |
+| calc_selective_s3_strict_plus_lookup | 20260219_104111_d805c6/runs/20260219_104111_d805c6_m04 | 0.1099 | 406.7684 | 0.6052 |

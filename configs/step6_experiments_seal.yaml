@@ -71,3 +71,15 @@ experiments:
   - label: calc_closure_c3_scored_soft_retry
     run_id: 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m04
     group: ablation
+  - label: calc_selective_s0_baseline
+    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m01
+    group: ablation
+  - label: calc_selective_s1_pre_gate_only
+    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m02
+    group: ablation
+  - label: calc_selective_s2_strict_gates
+    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m03
+    group: ablation
+  - label: calc_selective_s3_strict_plus_lookup
+    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m04
+    group: ablation

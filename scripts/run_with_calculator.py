@@ -16,7 +16,14 @@ SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-from calculator.compute import compute_for_query, group_facts, parse_task, select_group  # noqa: E402
+from calculator.compute import (  # noqa: E402
+    CalcResult,
+    CalcTrace,
+    compute_for_query,
+    group_facts,
+    parse_task_with_lookup,
+    select_group,
+)
 from calculator.extract import Fact, extract_facts_from_text  # noqa: E402
 from config.schema import get_path, resolve_config, validate_config, validate_paths  # noqa: E402
 from config.schema import write_resolved_config  # noqa: E402
@@ -64,6 +71,18 @@ TASK_KEYWORDS: Dict[str, List[str]] = {
 
 VALID_FACT_SELECTOR_MODES = {"legacy", "legacy_largest_group", "scored_v1"}
 VALID_TASK_PARSER_MODES = {"v1", "v2"}
+PERCENT_UNITS = {"%", "percent", "percentage", "pct", "bp", "bps", "百分点"}
+METRIC_HINTS = [
+    "revenue",
+    "sales",
+    "income",
+    "net income",
+    "profit",
+    "earnings",
+    "assets",
+    "liabilities",
+    "margin",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -102,6 +121,273 @@ def placeholder_generate(query: str, chunks: List[Dict[str, Any]]) -> str:
         return "No evidence found."
     snippet = chunks[0].get("text", "").replace("\n", " ").strip()
     return f"Q: {query}\nAnswer (template): {snippet[:200]}"
+
+
+def baseline_answer_generate(chunks: List[Dict[str, Any]]) -> str:
+    if not chunks:
+        return "No evidence found."
+    snippet = chunks[0].get("text", "").replace("\n", " ").strip()
+    if not snippet:
+        return "No evidence found."
+    return f"Answer based on evidence: {snippet[:220]}"
+
+
+def _keyword_hits(query: str, keywords: List[str]) -> List[str]:
+    q_lower = (query or "").lower()
+    hits: List[str] = []
+    for kw in keywords:
+        if not kw:
+            continue
+        if kw.lower() in q_lower:
+            hits.append(kw)
+    return hits
+
+
+def selective_pre_gate(
+    query: str,
+    *,
+    pre_gate_cfg: Dict[str, Any],
+    enable_lookup: bool,
+) -> Dict[str, Any]:
+    tau_need = float(pre_gate_cfg.get("tau_need", 0.8))
+    positive_keywords = [str(x) for x in pre_gate_cfg.get("positive_keywords", [])]
+    negative_keywords = [str(x) for x in pre_gate_cfg.get("negative_keywords", [])]
+    negative_enabled = bool(get_path(pre_gate_cfg, "negative_intent.enabled", True))
+
+    parser_probe = parse_task_with_lookup(
+        query,
+        mode="v2",
+        min_conf=0.0,
+        enable_lookup=enable_lookup,
+    )
+    positive_hits = _keyword_hits(query, positive_keywords)
+    negative_hits = _keyword_hits(query, negative_keywords)
+    parser_pass = (
+        parser_probe.task_type is not None and float(parser_probe.confidence) >= float(tau_need)
+    )
+
+    if negative_enabled and negative_hits and not positive_hits:
+        return {
+            "needs_calc": False,
+            "task_type": parser_probe.task_type,
+            "conf": float(parser_probe.confidence),
+            "skip_reason": "negative_intent",
+            "positive_hits": positive_hits,
+            "negative_hits": negative_hits,
+            "parser_rule": parser_probe.rule,
+        }
+
+    if positive_hits or parser_pass:
+        task_type = parser_probe.task_type
+        if task_type is None and enable_lookup and positive_hits:
+            task_type = "lookup"
+        return {
+            "needs_calc": True,
+            "task_type": task_type,
+            "conf": float(parser_probe.confidence),
+            "skip_reason": None,
+            "positive_hits": positive_hits,
+            "negative_hits": negative_hits,
+            "parser_rule": parser_probe.rule,
+        }
+
+    return {
+        "needs_calc": False,
+        "task_type": parser_probe.task_type,
+        "conf": float(parser_probe.confidence),
+        "skip_reason": "no_numeric_intent",
+        "positive_hits": positive_hits,
+        "negative_hits": negative_hits,
+        "parser_rule": parser_probe.rule,
+    }
+
+
+def _normalize_unit(unit: Optional[str]) -> Optional[str]:
+    if unit is None:
+        return None
+    raw = str(unit).strip().lower()
+    if raw in {"%", "percent", "percentage", "pct"}:
+        return "%"
+    if raw in {"bp", "bps", "basis point", "basis points"}:
+        return "bps"
+    return raw
+
+
+def _units_consistent(facts: List[Fact]) -> bool:
+    units = [_normalize_unit(f.unit) for f in facts if f.unit]
+    return len(set(units)) <= 1
+
+
+def _top_k_by_conf(facts: List[Fact], k: int) -> List[Fact]:
+    k_use = max(1, int(k))
+    return sorted(facts, key=lambda x: float(x.confidence), reverse=True)[:k_use]
+
+
+def selective_evidence_gate(
+    query: str,
+    *,
+    task_type: Optional[str],
+    facts: List[Fact],
+    evidence_cfg: Dict[str, Any],
+    lookup_cfg: Dict[str, Any],
+) -> Tuple[bool, str, List[Fact]]:
+    if not task_type:
+        return False, "insufficient_operands_precheck", []
+
+    strict_year = bool(evidence_cfg.get("strict_year", True))
+    require_unit = bool(evidence_cfg.get("require_unit_consistency", True))
+    min_ops = evidence_cfg.get("min_operands", {}) or {}
+    min_default = 2
+    min_operands = int(min_ops.get(task_type, 1 if task_type == "lookup" else min_default))
+
+    filtered = list(facts)
+    if strict_year:
+        filtered = [f for f in filtered if not bool(f.inferred_year)]
+    if len(filtered) < min_operands:
+        return False, "insufficient_operands_precheck", []
+
+    if task_type == "yoy":
+        yoy_facts = [f for f in filtered if f.year is not None]
+        if len(yoy_facts) < min_operands:
+            return False, "year_missing_precheck", []
+        years = sorted({int(f.year) for f in yoy_facts if f.year is not None})
+        if len(years) < 2:
+            return False, "year_missing_precheck", []
+        groups: Dict[Tuple[Optional[str], Optional[str], Optional[str]], List[Fact]] = {}
+        for fact in yoy_facts:
+            groups.setdefault((fact.metric, fact.entity, fact.unit), []).append(fact)
+        ranked = sorted(
+            groups.values(),
+            key=lambda rows: (len(rows), max(float(f.confidence) for f in rows)),
+            reverse=True,
+        )
+        best_group = ranked[0] if ranked else yoy_facts
+        if len({f.year for f in best_group if f.year is not None}) < 2:
+            return False, "insufficient_operands_precheck", []
+        if require_unit and not _units_consistent(best_group):
+            return False, "unit_mismatch_precheck", []
+        picked_by_year: Dict[int, Fact] = {}
+        for fact in _top_k_by_conf(best_group, len(best_group)):
+            if fact.year is None:
+                continue
+            picked_by_year.setdefault(int(fact.year), fact)
+        years_use = sorted(picked_by_year.keys())[-2:]
+        selected = [picked_by_year[y] for y in years_use]
+        if len(selected) < 2:
+            return False, "year_missing_precheck", []
+        return True, "ok", selected
+
+    if task_type in {"diff", "multiple", "share"}:
+        selected = _top_k_by_conf(filtered, max(min_operands, 2))
+        if len(selected) < min_operands:
+            return False, "insufficient_operands_precheck", []
+        if require_unit and not _units_consistent(selected):
+            return False, "unit_mismatch_precheck", []
+        if task_type == "share":
+            denom = max(float(f.value) for f in selected)
+            if abs(denom) < 1e-12:
+                return False, "denom_missing_precheck", []
+        return True, "ok", selected
+
+    if task_type == "lookup":
+        constraints = build_constraints(query)
+        years = constraints.get("years", [])
+        require_explicit_year = bool(lookup_cfg.get("require_explicit_year", True))
+        if strict_year and require_explicit_year and not years:
+            return False, "year_missing_precheck", []
+        lookup_facts = list(filtered)
+        if years:
+            lookup_facts = [f for f in lookup_facts if f.year in years]
+            if not lookup_facts:
+                return False, "year_missing_precheck", []
+        metric_terms = [m for m in METRIC_HINTS if m in (query or "").lower()]
+        if metric_terms:
+            metric_filtered = [
+                f
+                for f in lookup_facts
+                if f.metric and str(f.metric).lower() in set(metric_terms)
+            ]
+            if metric_filtered:
+                lookup_facts = metric_filtered
+        if not lookup_facts:
+            return False, "insufficient_operands_precheck", []
+        selected = _top_k_by_conf(lookup_facts, 1)
+        return True, "ok", selected
+
+    return False, "insufficient_operands_precheck", []
+
+
+def selective_post_gate(result: CalcResult, post_cfg: Dict[str, Any]) -> Tuple[bool, str]:
+    if not bool(post_cfg.get("enabled", True)):
+        return True, "ok"
+    if result.status != "ok":
+        return False, f"status_{result.status}"
+
+    if bool(post_cfg.get("require_unit_ok", True)):
+        units = [_normalize_unit(i.get("unit")) for i in result.inputs if i.get("unit")]
+        if len(set(units)) > 1:
+            return False, "unit_mismatch_postcheck"
+
+    if result.task_type == "share":
+        value = result.result_value
+        if value is None:
+            return False, "share_missing_value"
+        share_range = post_cfg.get("share_range", [0.0, 100.0]) or [0.0, 100.0]
+        lo = float(share_range[0]) if len(share_range) >= 1 else 0.0
+        hi = float(share_range[1]) if len(share_range) >= 2 else 100.0
+        unit = _normalize_unit(result.result_unit)
+        if unit not in {"%", "bps"}:
+            lo, hi = 0.0, 1.0
+        if float(value) < lo or float(value) > hi:
+            return False, "share_out_of_range_postcheck"
+
+    if result.task_type == "yoy":
+        value = result.result_value
+        if value is None:
+            return False, "yoy_missing_value"
+        yoy_abs_max = float(post_cfg.get("yoy_abs_max", 1000.0))
+        if abs(float(value)) > yoy_abs_max:
+            return False, "yoy_out_of_range_postcheck"
+
+    return True, "ok"
+
+
+def _attach_parser_fields(trace: CalcTrace, parsed: Any) -> None:
+    trace.parser_mode = parsed.mode
+    trace.parser_confidence = parsed.confidence
+    trace.parser_rule = parsed.rule
+    trace.parser_rejected = parsed.rejected
+    trace.parser_scores = dict(parsed.scores)
+    trace.parser_rules = list(parsed.rules)
+
+
+def build_skip_result(
+    *,
+    qid: str,
+    task_type: Optional[str],
+    reason: str,
+    parsed: Any,
+) -> Tuple[CalcResult, CalcTrace]:
+    task = task_type or "unknown"
+    result = CalcResult(
+        qid=qid,
+        task_type=task,
+        inputs=[],
+        result_value=None,
+        result_unit=None,
+        explanation=f"skipped: {reason}",
+        confidence=0.0,
+        status="skipped",
+    )
+    trace = CalcTrace(
+        qid=qid,
+        task_type=task,
+        selected_key=None,
+        candidates=0,
+        reason=f"skipped:{reason}",
+    )
+    _attach_parser_fields(trace, parsed)
+    return result, trace
 
 
 def build_retriever(config: Dict[str, Any]) -> HybridRetriever:
@@ -339,7 +625,10 @@ def select_scored(
     chosen_group_keys: List[List[Any]] = []
     group_scores_top: List[Dict[str, Any]] = []
     if top_groups is not None:
-        grouped_rows: Dict[Tuple[Optional[str], Optional[str], Optional[str]], List[Dict[str, Any]]] = {}
+        grouped_rows: Dict[
+            Tuple[Optional[str], Optional[str], Optional[str]],
+            List[Dict[str, Any]],
+        ] = {}
         for row in scored:
             fact = row["fact"]
             gkey = (fact.metric, fact.entity, fact.unit)
@@ -362,7 +651,11 @@ def select_scored(
             for row in scored
             if (row["fact"].metric, row["fact"].entity, row["fact"].unit) in selected_gkeys
         ]
-        candidate = filtered[: min(24, len(filtered))] if filtered else scored[: min(24, len(scored))]
+        candidate = (
+            filtered[: min(24, len(filtered))]
+            if filtered
+            else scored[: min(24, len(scored))]
+        )
     else:
         candidate = scored[: min(24, len(scored))]
 
@@ -495,6 +788,19 @@ def main() -> int:
     top_k = int(get_path(resolved, "retriever.top_k", 5))
     alpha = float(get_path(resolved, "retriever.hybrid.alpha", 0.5))
     mode = get_path(resolved, "retriever.mode", "dense")
+    enable_lookup = bool(get_path(resolved, "calculator.tasks.enable_lookup", False))
+
+    selective_cfg = get_path(resolved, "calculator.selective", {}) or {}
+    selective_enabled = bool(selective_cfg.get("enabled", False))
+    pre_gate_cfg = selective_cfg.get("pre_gate", {}) or {}
+    evidence_gate_cfg = selective_cfg.get("evidence_gate", {}) or {}
+    post_gate_cfg = selective_cfg.get("post_gate", {}) or {}
+    lookup_gate_cfg = selective_cfg.get("lookup", {}) or {}
+    selective_pre_gate_enabled = bool(
+        pre_gate_cfg.get("enabled", True if selective_enabled else False)
+    )
+    selective_evidence_gate_enabled = bool(evidence_gate_cfg.get("enabled", True))
+    selective_post_gate_enabled = bool(post_gate_cfg.get("enabled", True))
 
     task_parser_mode = str(get_path(resolved, "calculator.task_parser.mode", "v1")).lower().strip()
     if task_parser_mode not in VALID_TASK_PARSER_MODES:
@@ -540,13 +846,18 @@ def main() -> int:
             max_chunks = None
 
     logger.info(
-        "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s", mode, top_k, alpha, output_percent
+        "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s",
+        mode,
+        top_k,
+        alpha,
+        output_percent,
     )
     logger.info(
-        "task_parser mode=%s min_conf=%.3f fact_selector mode=%s",
+        "task_parser mode=%s min_conf=%.3f fact_selector mode=%s lookup=%s",
         task_parser_mode,
         task_parser_min_conf,
         fact_selector_mode,
+        enable_lookup,
     )
     logger.info("fact_selector_scored_v1=%s", fact_selector_scored)
     logger.info(
@@ -554,6 +865,13 @@ def main() -> int:
         selector_soft_fallback,
         selector_top_groups,
         selector_top_pairs,
+    )
+    logger.info(
+        "selective enabled=%s pre_gate=%s evidence_gate=%s post_gate=%s",
+        selective_enabled,
+        selective_pre_gate_enabled,
+        selective_evidence_gate_enabled,
+        selective_post_gate_enabled,
     )
     logger.info("calculator_max_chunks_for_facts=%s", max_chunks)
 
@@ -582,6 +900,13 @@ def main() -> int:
     selected_pair_total = 0
     soft_fallback_attempts = 0
     soft_fallback_hits = 0
+    selective_pre_gate_counts: Counter[str] = Counter()
+    selective_evidence_gate_counts: Counter[str] = Counter()
+    selective_post_gate_counts: Counter[str] = Counter()
+    selective_skip_stage_counts: Counter[str] = Counter()
+    selective_skip_detail_counts: Counter[str] = Counter()
+    selective_needs_calc_count = 0
+    selective_calculator_used_count = 0
 
     with open(retrieval_results_path, "w", encoding="utf-8") as retr_f, \
         open(facts_path, "w", encoding="utf-8") as facts_f, \
@@ -608,97 +933,195 @@ def main() -> int:
                 ]
             retr_f.write(json.dumps({"qid": qid, "all_collected_chunks": chunks}) + "\n")
 
+            legacy_baseline_answer = placeholder_generate(query, chunks)
+            selective_baseline_answer = baseline_answer_generate(chunks)
+            baseline_answer = (
+                selective_baseline_answer if selective_enabled else legacy_baseline_answer
+            )
+
+            pre_gate_decision: Dict[str, Any] = {"needs_calc": True, "skip_reason": None}
+            needs_calc = True
+            calc_skip_reason: Optional[str] = None
+            calc_skip_detail: Optional[str] = None
+            fallback_reason: Optional[str] = None
+            calculator_used = False
+
             qid_facts: List[Fact] = []
-            for ch in (chunks[:max_chunks] if max_chunks else chunks):
-                chunk_id = ch.get("chunk_id") or ch.get("meta", {}).get("chunk_id")
-                text = ch.get("text", "")
-                if text:
-                    qid_facts.extend(extract_facts_from_text(qid, chunk_id, text, query, None))
-            if qid_facts:
-                queries_with_facts += 1
-            for fact in qid_facts:
-                extract_total += 1
-                if fact.inferred_year:
-                    inferred_year += 1
-                if fact.year is None:
-                    missing_year += 1
-                if fact.unit is None:
-                    missing_unit += 1
-                facts_f.write(json.dumps(fact.__dict__, ensure_ascii=False) + "\n")
+            selected_facts: List[Fact] = []
+            selector_audit: Dict[str, Any] = {
+                "mode": fact_selector_mode,
+                "reason": "no_selection",
+                "selected_fact_count": 0,
+                "selected_pair_count": 0,
+                "selected_chunk_ids": [],
+                "selected_numbers": [],
+            }
 
-            parsed = parse_task(query, mode=task_parser_mode, min_conf=task_parser_min_conf)
-            selected_facts, selector_audit = select_facts(
-                query=query,
-                facts=qid_facts,
-                chunks=chunks,
-                mode=fact_selector_mode,
-                scored_cfg=fact_selector_scored,
-                task_hint=parsed.task_type,
-            )
-            compute_policy = None
-            if selector_top_pairs > 1:
-                compute_policy = {
-                    "selector_mode": fact_selector_mode,
-                    "top_groups": selector_top_groups or 1,
-                    "top_pairs": selector_top_pairs,
-                    "soft_fallback": False,
-                }
-
-            result, trace = compute_for_query(
+            parsed = parse_task_with_lookup(
                 query,
-                selected_facts,
-                output_percent,
-                task_parser_mode=task_parser_mode,
-                task_parser_min_conf=task_parser_min_conf,
-                policy=compute_policy,
+                mode=task_parser_mode,
+                min_conf=task_parser_min_conf,
+                enable_lookup=enable_lookup,
             )
+            task_hint = parsed.task_type
+            result: Optional[CalcResult] = None
+            trace: Optional[CalcTrace] = None
 
-            if (
-                selector_soft_fallback
-                and fact_selector_mode == "scored_v1"
-                and result.status != "ok"
-                and qid_facts
-            ):
-                soft_fallback_attempts += 1
-                legacy_facts, legacy_audit = select_legacy(qid_facts)
-                fallback_policy = None
-                if selector_top_pairs > 1:
-                    fallback_policy = {
-                        "selector_mode": "legacy_largest_group",
-                        "top_groups": 1,
-                        "top_pairs": selector_top_pairs,
-                        "soft_fallback": False,
-                    }
-                retry_result, retry_trace = compute_for_query(
+            if selective_enabled and selective_pre_gate_enabled:
+                pre_gate_decision = selective_pre_gate(
                     query,
-                    legacy_facts,
-                    output_percent,
-                    task_parser_mode=task_parser_mode,
-                    task_parser_min_conf=task_parser_min_conf,
-                    policy=fallback_policy,
+                    pre_gate_cfg=pre_gate_cfg,
+                    enable_lookup=enable_lookup,
                 )
-                selector_audit["soft_fallback"] = {
-                    "attempted": True,
-                    "activated": False,
-                    "fallback_status": retry_result.status,
-                }
-                if retry_result.status == "ok":
-                    soft_fallback_hits += 1
-                    result = retry_result
-                    trace = retry_trace
-                    selected_facts = legacy_facts
-                    selector_audit = legacy_audit
-                    selector_audit["reason"] = "soft_fallback_to_legacy_ok"
-                    selector_audit["soft_fallback"] = {
-                        "attempted": True,
-                        "activated": True,
-                        "fallback_status": retry_result.status,
-                    }
+                needs_calc = bool(pre_gate_decision.get("needs_calc"))
+                selective_pre_gate_counts["needs_calc" if needs_calc else "skip"] += 1
+                detail = str(pre_gate_decision.get("skip_reason") or "ok")
+                selective_pre_gate_counts[f"reason:{detail}"] += 1
+                if needs_calc:
+                    selective_needs_calc_count += 1
+                else:
+                    calc_skip_reason = "pre_gate"
+                    calc_skip_detail = detail
+                    selective_skip_stage_counts["pre_gate"] += 1
+                    selective_skip_detail_counts[calc_skip_detail] += 1
+                    task_hint = task_hint or pre_gate_decision.get("task_type")
+                    result, trace = build_skip_result(
+                        qid=str(qid),
+                        task_type=task_hint,
+                        reason=calc_skip_detail,
+                        parsed=parsed,
+                    )
+                    selector_audit["reason"] = "pre_gate_skip"
+
+            if result is None:
+                for ch in (chunks[:max_chunks] if max_chunks else chunks):
+                    chunk_id = ch.get("chunk_id") or ch.get("meta", {}).get("chunk_id")
+                    text = ch.get("text", "")
+                    if text:
+                        qid_facts.extend(extract_facts_from_text(qid, chunk_id, text, query, None))
+                if qid_facts:
+                    queries_with_facts += 1
+                for fact in qid_facts:
+                    extract_total += 1
+                    if fact.inferred_year:
+                        inferred_year += 1
+                    if fact.year is None:
+                        missing_year += 1
+                    if fact.unit is None:
+                        missing_unit += 1
+                    facts_f.write(json.dumps(fact.__dict__, ensure_ascii=False) + "\n")
+
+                task_hint = task_hint or parsed.task_type
+                selected_facts, selector_audit = select_facts(
+                    query=query,
+                    facts=qid_facts,
+                    chunks=chunks,
+                    mode=fact_selector_mode,
+                    scored_cfg=fact_selector_scored,
+                    task_hint=task_hint,
+                )
+
+                facts_for_compute = list(selected_facts)
+                if selective_enabled and selective_evidence_gate_enabled:
+                    evidence_ok, evidence_detail, evidence_facts = selective_evidence_gate(
+                        query,
+                        task_type=task_hint,
+                        facts=selected_facts,
+                        evidence_cfg=evidence_gate_cfg,
+                        lookup_cfg=lookup_gate_cfg,
+                    )
+                    selective_evidence_gate_counts["pass" if evidence_ok else "reject"] += 1
+                    selective_evidence_gate_counts[f"reason:{evidence_detail}"] += 1
+                    if not evidence_ok:
+                        calc_skip_reason = "evidence_gate"
+                        calc_skip_detail = evidence_detail
+                        selective_skip_stage_counts["evidence_gate"] += 1
+                        selective_skip_detail_counts[calc_skip_detail] += 1
+                        result, trace = build_skip_result(
+                            qid=str(qid),
+                            task_type=task_hint,
+                            reason=calc_skip_detail,
+                            parsed=parsed,
+                        )
+                    else:
+                        facts_for_compute = evidence_facts
+
+                if result is None:
+                    compute_policy = None
+                    if selector_top_pairs > 1:
+                        compute_policy = {
+                            "selector_mode": fact_selector_mode,
+                            "top_groups": selector_top_groups or 1,
+                            "top_pairs": selector_top_pairs,
+                            "soft_fallback": False,
+                        }
+                    result, trace = compute_for_query(
+                        query,
+                        facts_for_compute,
+                        output_percent,
+                        task_parser_mode=task_parser_mode,
+                        task_parser_min_conf=task_parser_min_conf,
+                        enable_lookup=enable_lookup,
+                        policy=compute_policy,
+                    )
+
+                    if (
+                        selector_soft_fallback
+                        and fact_selector_mode == "scored_v1"
+                        and result.status != "ok"
+                        and qid_facts
+                    ):
+                        soft_fallback_attempts += 1
+                        legacy_facts, legacy_audit = select_legacy(qid_facts)
+                        fallback_policy = None
+                        if selector_top_pairs > 1:
+                            fallback_policy = {
+                                "selector_mode": "legacy_largest_group",
+                                "top_groups": 1,
+                                "top_pairs": selector_top_pairs,
+                                "soft_fallback": False,
+                            }
+                        retry_result, retry_trace = compute_for_query(
+                            query,
+                            legacy_facts,
+                            output_percent,
+                            task_parser_mode=task_parser_mode,
+                            task_parser_min_conf=task_parser_min_conf,
+                            enable_lookup=enable_lookup,
+                            policy=fallback_policy,
+                        )
+                        selector_audit["soft_fallback"] = {
+                            "attempted": True,
+                            "activated": False,
+                            "fallback_status": retry_result.status,
+                        }
+                        if retry_result.status == "ok":
+                            soft_fallback_hits += 1
+                            result = retry_result
+                            trace = retry_trace
+                            selected_facts = legacy_facts
+                            selector_audit = legacy_audit
+                            selector_audit["reason"] = "soft_fallback_to_legacy_ok"
+                            selector_audit["soft_fallback"] = {
+                                "attempted": True,
+                                "activated": True,
+                                "fallback_status": retry_result.status,
+                            }
 
             selector_mode_counts[selector_audit.get("mode", fact_selector_mode)] += 1
             selector_reason_counts[selector_audit.get("reason", "unknown")] += 1
             selected_fact_total += int(selector_audit.get("selected_fact_count", 0))
             selected_pair_total += int(selector_audit.get("selected_pair_count", 0))
+
+            if result is None or trace is None:
+                result, trace = build_skip_result(
+                    qid=str(qid),
+                    task_type=task_hint,
+                    reason="unknown_skip",
+                    parsed=parsed,
+                )
+                calc_skip_reason = calc_skip_reason or "compute_fail"
+                calc_skip_detail = calc_skip_detail or "unknown_skip"
 
             result.qid = qid
             trace.qid = qid
@@ -716,42 +1139,86 @@ def main() -> int:
             results_f.write(json.dumps(result.__dict__, ensure_ascii=False) + "\n")
             traces_f.write(json.dumps(trace.__dict__, ensure_ascii=False) + "\n")
 
-            gate_cfg = get_path(resolved, "calculator.gate", {}) or {}
-            allow_tasks = gate_cfg.get("allow_task_types", ["yoy", "diff"])
-            min_conf = float(gate_cfg.get("min_conf", 0.0))
-            require_unit = bool(gate_cfg.get("require_unit_consistency", True))
-            require_year = bool(gate_cfg.get("require_year_match", True))
-            allow_inferred = bool(gate_cfg.get("allow_inferred", False))
-            gate_reason = None
-            if gate_cfg.get("enabled", True):
-                if result.task_type not in allow_tasks:
-                    gate_reason = "gate_task"
-                elif result.status != "ok":
-                    gate_reason = f"status_{result.status}"
-                elif result.confidence < min_conf:
-                    gate_reason = "gate_conf"
+            if selective_enabled:
+                if result.status == "ok":
+                    if selective_post_gate_enabled:
+                        post_input_cfg = dict(post_gate_cfg)
+                        post_input_cfg["enabled"] = True
+                        post_ok, post_detail = selective_post_gate(result, post_input_cfg)
+                    else:
+                        post_ok, post_detail = True, "ok"
+                    selective_post_gate_counts["pass" if post_ok else "reject"] += 1
+                    selective_post_gate_counts[f"reason:{post_detail}"] += 1
+                    if post_ok:
+                        calculator_used = True
+                        selective_calculator_used_count += 1
+                        used_chunks = [
+                            i.get("chunk_id") for i in result.inputs if i.get("chunk_id")
+                        ]
+                        calc_head = (
+                            f"Result: {result.result_value} {result.result_unit or ''}".strip()
+                        )
+                        pred_answer = f"{calc_head}. {baseline_answer}".strip()
+                        fallback_reason = None
+                        calc_skip_reason = None
+                        calc_skip_detail = None
+                    else:
+                        calc_skip_reason = "post_gate"
+                        calc_skip_detail = post_detail
+                        selective_skip_stage_counts["post_gate"] += 1
+                        selective_skip_detail_counts[calc_skip_detail] += 1
+                        used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
+                        pred_answer = baseline_answer
+                        fallback_reason = calc_skip_detail
+                        fallback_counts[fallback_reason] += 1
                 else:
-                    units = [i.get("unit") for i in result.inputs]
-                    if require_unit and units and len({u for u in units if u}) > 1:
-                        gate_reason = "gate_unit"
-                    if require_year and result.task_type == "yoy":
-                        years = [i.get("year") for i in result.inputs]
-                        inferred = [bool(i.get("inferred_year")) for i in result.inputs]
-                        if any(y is None for y in years):
-                            gate_reason = "gate_year"
-                        if any(inferred) and not allow_inferred:
-                            gate_reason = "gate_inferred"
-
-            if result.status == "ok" and gate_reason is None:
-                used_chunks = [i.get("chunk_id") for i in result.inputs if i.get("chunk_id")]
-                unit = result.result_unit or ""
-                pred_answer = f"Result: {result.result_value} {unit}. {result.explanation}"
-                fallback_reason = None
+                    if calc_skip_reason is None:
+                        calc_skip_reason = "compute_fail"
+                        calc_skip_detail = f"status_{result.status}"
+                    if calc_skip_detail is None:
+                        calc_skip_detail = "status_unknown"
+                    used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
+                    pred_answer = baseline_answer
+                    fallback_reason = calc_skip_detail
+                    fallback_counts[fallback_reason] += 1
             else:
-                used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
-                pred_answer = placeholder_generate(query, chunks)
-                fallback_reason = gate_reason or result.status
-                fallback_counts[fallback_reason] += 1
+                gate_cfg = get_path(resolved, "calculator.gate", {}) or {}
+                allow_tasks = gate_cfg.get("allow_task_types", ["yoy", "diff"])
+                min_conf = float(gate_cfg.get("min_conf", 0.0))
+                require_unit = bool(gate_cfg.get("require_unit_consistency", True))
+                require_year = bool(gate_cfg.get("require_year_match", True))
+                allow_inferred = bool(gate_cfg.get("allow_inferred", False))
+                gate_reason = None
+                if gate_cfg.get("enabled", True):
+                    if result.task_type not in allow_tasks:
+                        gate_reason = "gate_task"
+                    elif result.status != "ok":
+                        gate_reason = f"status_{result.status}"
+                    elif result.confidence < min_conf:
+                        gate_reason = "gate_conf"
+                    else:
+                        units = [i.get("unit") for i in result.inputs]
+                        if require_unit and units and len({u for u in units if u}) > 1:
+                            gate_reason = "gate_unit"
+                        if require_year and result.task_type == "yoy":
+                            years = [i.get("year") for i in result.inputs]
+                            inferred = [bool(i.get("inferred_year")) for i in result.inputs]
+                            if any(y is None for y in years):
+                                gate_reason = "gate_year"
+                            if any(inferred) and not allow_inferred:
+                                gate_reason = "gate_inferred"
+
+                if result.status == "ok" and gate_reason is None:
+                    calculator_used = True
+                    used_chunks = [i.get("chunk_id") for i in result.inputs if i.get("chunk_id")]
+                    unit = result.result_unit or ""
+                    pred_answer = f"Result: {result.result_value} {unit}. {result.explanation}"
+                    fallback_reason = None
+                else:
+                    used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
+                    pred_answer = placeholder_generate(query, chunks)
+                    fallback_reason = gate_reason or result.status
+                    fallback_counts[fallback_reason] += 1
 
             preds_f.write(
                 json.dumps(
@@ -761,6 +1228,12 @@ def main() -> int:
                         "used_chunks": used_chunks,
                         "R": result.__dict__,
                         "fallback_reason": fallback_reason,
+                        "calculator_used": calculator_used,
+                        "calc_skip_reason": calc_skip_reason,
+                        "calc_skip_detail": calc_skip_detail,
+                        "needs_calc": bool(pre_gate_decision.get("needs_calc"))
+                        if selective_enabled
+                        else None,
                     },
                     ensure_ascii=False,
                 )
@@ -813,6 +1286,13 @@ def main() -> int:
                             "explanation": result.explanation,
                         },
                         "fallback_reason": fallback_reason,
+                        "calculator_used": calculator_used,
+                        "calc_skip_reason": calc_skip_reason,
+                        "calc_skip_detail": calc_skip_detail,
+                        "needs_calc": bool(pre_gate_decision.get("needs_calc"))
+                        if selective_enabled
+                        else None,
+                        "pre_gate_audit": pre_gate_decision if selective_enabled else {},
                     },
                     ensure_ascii=False,
                 )
@@ -861,6 +1341,22 @@ def main() -> int:
             "soft_fallback_enabled": selector_soft_fallback,
             "soft_fallback_attempts": soft_fallback_attempts,
             "soft_fallback_hits": soft_fallback_hits,
+        },
+        "selective_stats": {
+            "enabled": selective_enabled,
+            "pre_gate_enabled": selective_pre_gate_enabled,
+            "evidence_gate_enabled": selective_evidence_gate_enabled,
+            "post_gate_enabled": selective_post_gate_enabled,
+            "pre_gate_counts": dict(selective_pre_gate_counts),
+            "evidence_gate_counts": dict(selective_evidence_gate_counts),
+            "post_gate_counts": dict(selective_post_gate_counts),
+            "skip_stage_counts": dict(selective_skip_stage_counts),
+            "skip_detail_counts": dict(selective_skip_detail_counts),
+            "needs_calc_ratio": selective_needs_calc_count / total if total else 0.0,
+            "calculator_used_ratio": selective_calculator_used_count / total if total else 0.0,
+            "needs_calc_count": selective_needs_calc_count,
+            "calculator_used_count": selective_calculator_used_count,
+            "lookup_enabled": enable_lookup,
         },
         "results_path": results_path,
         "traces_path": traces_path,

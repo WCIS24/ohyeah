@@ -7,6 +7,40 @@ from typing import Dict, List, Optional, Tuple
 from calculator.extract import Fact
 
 YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
+LOOKUP_NUMERIC_SHAPE_PATTERNS: List[str] = [
+    "是多少",
+    "为多少",
+    "多少",
+    "数值",
+    "value",
+    "number",
+    "what is",
+    "how much",
+    "how many",
+]
+LOOKUP_OPERATION_HINTS: List[str] = [
+    "yoy",
+    "year over year",
+    "同比",
+    "环比",
+    "growth",
+    "increase",
+    "decrease",
+    "difference",
+    "diff",
+    "delta",
+    "change",
+    "from",
+    "to",
+    "share",
+    "比例",
+    "占比",
+    "times",
+    "multiple",
+    "倍",
+    "ratio",
+    "percentage of",
+]
 
 V1_KEYWORDS: Dict[str, List[str]] = {
     "yoy": [
@@ -54,13 +88,19 @@ V2_PATTERNS: List[Tuple[str, str, str, float]] = [
     ("yoy_explicit", r"\byoy\b|year\s*over\s*year|\u540c\u6bd4|\u73af\u6bd4", "yoy", 0.90),
     (
         "yoy_rate",
-        r"growth\s*rate|rate\s*of\s*change|increase\s*rate|decrease\s*rate|\u589e\u957f\u7387|\u589e\u901f|\u53d8\u5316\u7387",
+        (
+            r"growth\s*rate|rate\s*of\s*change|increase\s*rate|decrease\s*rate|"
+            r"\u589e\u957f\u7387|\u589e\u901f|\u53d8\u5316\u7387"
+        ),
         "yoy",
         0.70,
     ),
     (
         "diff_explicit",
-        r"\bdifference\b|\bdelta\b|\bdiff\b|how\s*much\s*(?:increase|decrease|change)|\u5dee\u503c|\u5dee\u989d|\u589e\u52a0|\u51cf\u5c11",
+        (
+            r"\bdifference\b|\bdelta\b|\bdiff\b|how\s*much\s*(?:increase|decrease|change)|"
+            r"\u5dee\u503c|\u5dee\u989d|\u589e\u52a0|\u51cf\u5c11"
+        ),
         "diff",
         0.80,
     ),
@@ -140,7 +180,16 @@ def _contains_any(text: str, keywords: List[str]) -> Optional[str]:
     return None
 
 
-def parse_task_v1(query: str) -> TaskParseResult:
+def _looks_like_lookup_query(query: str) -> bool:
+    q = (query or "").lower()
+    has_numeric_shape = any(kw in q for kw in LOOKUP_NUMERIC_SHAPE_PATTERNS)
+    if not has_numeric_shape:
+        return False
+    has_operation = any(kw in q for kw in LOOKUP_OPERATION_HINTS)
+    return not has_operation
+
+
+def parse_task_v1(query: str, enable_lookup: bool = False) -> TaskParseResult:
     q = (query or "").lower()
     for task in ["yoy", "diff", "share", "multiple"]:
         hit = _contains_any(q, [k.lower() for k in V1_KEYWORDS[task]])
@@ -154,6 +203,16 @@ def parse_task_v1(query: str) -> TaskParseResult:
                 scores={task: 1.0},
                 rules=[f"v1:{task}:{hit}"],
             )
+    if enable_lookup and _looks_like_lookup_query(query):
+        return TaskParseResult(
+            task_type="lookup",
+            confidence=0.9,
+            rule="v1:lookup:numeric_shape",
+            mode="v1",
+            rejected=False,
+            scores={"lookup": 0.9},
+            rules=["v1:lookup:numeric_shape"],
+        )
     return TaskParseResult(
         task_type=None,
         confidence=0.0,
@@ -165,10 +224,12 @@ def parse_task_v1(query: str) -> TaskParseResult:
     )
 
 
-def parse_task_v2(query: str, min_conf: float) -> TaskParseResult:
+def parse_task_v2(query: str, min_conf: float, enable_lookup: bool = False) -> TaskParseResult:
     q = query or ""
     q_lower = q.lower()
     scores: Dict[str, float] = {"yoy": 0.0, "diff": 0.0, "share": 0.0, "multiple": 0.0}
+    if enable_lookup:
+        scores["lookup"] = 0.0
     rule_hits: List[str] = []
 
     def hit(task: str, rule_id: str, score: float) -> None:
@@ -196,6 +257,9 @@ def parse_task_v2(query: str, min_conf: float) -> TaskParseResult:
 
     if any(x in q_lower for x in ["up", "down", "fell", "rose", "drop", "gain"]):
         hit("diff", "v2:directional_terms", 0.20)
+
+    if enable_lookup and _looks_like_lookup_query(q):
+        hit("lookup", "v2:lookup_numeric_shape", 0.85)
 
     positive_scores = [s for s in scores.values() if s > 0]
     if not positive_scores:
@@ -240,12 +304,29 @@ def parse_task_v2(query: str, min_conf: float) -> TaskParseResult:
 def parse_task(query: str, mode: str = "v1", min_conf: float = 0.0) -> TaskParseResult:
     parser_mode = (mode or "v1").strip().lower()
     if parser_mode == "v2":
-        return parse_task_v2(query, min_conf=min_conf)
-    return parse_task_v1(query)
+        return parse_task_v2(query, min_conf=min_conf, enable_lookup=False)
+    return parse_task_v1(query, enable_lookup=False)
 
 
-def detect_task(query: str) -> Optional[str]:
-    return parse_task(query, mode="v1", min_conf=0.0).task_type
+def parse_task_with_lookup(
+    query: str,
+    mode: str = "v1",
+    min_conf: float = 0.0,
+    enable_lookup: bool = False,
+) -> TaskParseResult:
+    parser_mode = (mode or "v1").strip().lower()
+    if parser_mode == "v2":
+        return parse_task_v2(query, min_conf=min_conf, enable_lookup=enable_lookup)
+    return parse_task_v1(query, enable_lookup=enable_lookup)
+
+
+def detect_task(query: str, enable_lookup: bool = False) -> Optional[str]:
+    return parse_task_with_lookup(
+        query,
+        mode="v1",
+        min_conf=0.0,
+        enable_lookup=enable_lookup,
+    ).task_type
 
 
 def group_facts(facts: List[Fact]) -> Dict[Tuple, List[Fact]]:
@@ -320,7 +401,12 @@ def _candidate_pairs(group: List[Fact], top_pairs: int, task: str) -> List[List[
             score = min(float(a.confidence), float(b.confidence))
             if a.unit and b.unit and a.unit == b.unit:
                 score += 0.10
-            if task in {"yoy", "diff"} and a.year is not None and b.year is not None and a.year != b.year:
+            if (
+                task in {"yoy", "diff"}
+                and a.year is not None
+                and b.year is not None
+                and a.year != b.year
+            ):
                 score += 0.08
             if task in {"share", "multiple"}:
                 score += 0.05
@@ -344,6 +430,8 @@ def _compute_task(
         return compute_share(group)
     if task == "multiple":
         return compute_multiple(group)
+    if task == "lookup":
+        return compute_lookup(group)
     result = CalcResult(
         qid="",
         task_type=task,
@@ -856,6 +944,65 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
     )
 
 
+def compute_lookup(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
+    if not facts:
+        return (
+            CalcResult(
+                qid="",
+                task_type="lookup",
+                inputs=[],
+                result_value=None,
+                result_unit=None,
+                explanation="insufficient facts",
+                confidence=0.0,
+                status="insufficient_facts",
+            ),
+            CalcTrace(
+                qid="",
+                task_type="lookup",
+                selected_key=None,
+                candidates=0,
+                reason="too_few",
+            ),
+        )
+
+    facts_sorted = sorted(
+        facts,
+        key=lambda x: (float(x.confidence), int(x.year is not None), int(x.unit is not None)),
+        reverse=True,
+    )
+    best = facts_sorted[0]
+    inputs = [
+        {
+            "year": best.year,
+            "value": best.value,
+            "unit": best.unit,
+            "chunk_id": best.chunk_id,
+            "inferred_year": best.inferred_year,
+            "confidence": best.confidence,
+        }
+    ]
+    return (
+        CalcResult(
+            qid="",
+            task_type="lookup",
+            inputs=inputs,
+            result_value=best.value,
+            result_unit=best.unit,
+            explanation="lookup top fact",
+            confidence=best.confidence,
+            status="ok",
+        ),
+        CalcTrace(
+            qid="",
+            task_type="lookup",
+            selected_key=None,
+            candidates=len(facts),
+            reason="ok",
+        ),
+    )
+
+
 def _attach_parser(trace: CalcTrace, parsed: TaskParseResult) -> None:
     trace.parser_mode = parsed.mode
     trace.parser_confidence = parsed.confidence
@@ -871,9 +1018,15 @@ def compute_for_query(
     output_percent: bool = True,
     task_parser_mode: str = "v1",
     task_parser_min_conf: float = 0.0,
+    enable_lookup: bool = False,
     policy: Optional[Dict[str, object]] = None,
 ) -> Tuple[CalcResult, CalcTrace]:
-    parsed = parse_task(query, mode=task_parser_mode, min_conf=task_parser_min_conf)
+    parsed = parse_task_with_lookup(
+        query,
+        mode=task_parser_mode,
+        min_conf=task_parser_min_conf,
+        enable_lookup=enable_lookup,
+    )
     task = parsed.task_type
     if not task:
         trace = CalcTrace(
@@ -988,7 +1141,11 @@ def compute_for_query(
     tried_pair_count = 0
     attempted_fallback_to_legacy = False
     selected_key = primary_keys[0] if primary_keys else legacy_key
-    selected_group = groups.get(selected_key, legacy_group) if selected_key is not None else legacy_group
+    selected_group = (
+        groups.get(selected_key, legacy_group)
+        if selected_key is not None
+        else legacy_group
+    )
     last_result: Optional[CalcResult] = None
     last_trace: Optional[CalcTrace] = None
 

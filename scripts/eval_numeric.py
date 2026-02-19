@@ -281,6 +281,7 @@ def main() -> int:
     multi_pred = 0
     multi_gold = 0
     fallback_reason_counts: Counter[str] = Counter()
+    calc_skip_reason_counts: Counter[str] = Counter()
     calc_used_count = 0
     fallback_count = 0
     calc_used_em_all: List[int] = []
@@ -289,6 +290,8 @@ def main() -> int:
     fallback_em_on_covered: List[int] = []
     calc_used_covered_count = 0
     fallback_covered_count = 0
+    needs_calc_count = 0
+    needs_calc_known_count = 0
 
     per_query_file = open(per_query_path, "w", encoding="utf-8") if write_per_query else None
     try:
@@ -298,14 +301,36 @@ def main() -> int:
             pred_row = preds.get(qid, {}) if qid in preds else {}
             pred = pred_row.get("pred_answer", "")
             fallback_reason = pred_row.get("fallback_reason")
+            calc_skip_reason = pred_row.get("calc_skip_reason")
+            calc_skip_detail = pred_row.get("calc_skip_detail")
+            needs_calc = pred_row.get("needs_calc")
+            calculator_used_raw = pred_row.get("calculator_used")
+
+            calculator_used: bool
             if qid not in preds:
                 fallback_reason = "missing_prediction_row"
-            is_fallback = fallback_reason not in {None, ""}
+                calculator_used = False
+            elif isinstance(calculator_used_raw, bool):
+                calculator_used = calculator_used_raw
+            elif isinstance(calculator_used_raw, (int, float)):
+                calculator_used = bool(calculator_used_raw)
+            else:
+                calculator_used = fallback_reason in {None, ""}
+
+            is_fallback = not calculator_used
+            if is_fallback and fallback_reason in {None, ""}:
+                fallback_reason = calc_skip_detail or calc_skip_reason or "fallback"
             if is_fallback:
                 fallback_count += 1
                 fallback_reason_counts[str(fallback_reason)] += 1
+                if calc_skip_reason not in {None, ""}:
+                    calc_skip_reason_counts[str(calc_skip_reason)] += 1
             else:
                 calc_used_count += 1
+            if isinstance(needs_calc, bool):
+                needs_calc_known_count += 1
+                if needs_calc:
+                    needs_calc_count += 1
 
             gold_nums = extract_numbers(gold)
             pred_nums = extract_numbers(pred)
@@ -367,6 +392,10 @@ def main() -> int:
                             "extracted_ok": extracted_ok,
                             "fallback_reason": fallback_reason,
                             "calc_route": "fallback" if is_fallback else "calc_used",
+                            "calculator_used": calculator_used,
+                            "calc_skip_reason": calc_skip_reason,
+                            "calc_skip_detail": calc_skip_detail,
+                            "needs_calc": needs_calc,
                             "pred_text_snippet": snippet(pred),
                         },
                         ensure_ascii=False,
@@ -402,6 +431,12 @@ def main() -> int:
             - (mean(fallback_em_all) if fallback_em_all else 0.0)
         ),
         "fallback_reason_counts": dict(fallback_reason_counts),
+        "calc_skip_reason_counts": dict(calc_skip_reason_counts),
+        "needs_calc_count": needs_calc_count,
+        "needs_calc_known_count": needs_calc_known_count,
+        "needs_calc_ratio": (
+            needs_calc_count / needs_calc_known_count if needs_calc_known_count else None
+        ),
         "calc_used": {
             "count": calc_used_count,
             "coverage": calc_used_covered_count / calc_used_count if calc_used_count else 0.0,

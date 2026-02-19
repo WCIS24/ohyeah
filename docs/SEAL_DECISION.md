@@ -40,3 +40,21 @@ python scripts/plot_all.py --config scripts/plot_config.yaml
 
 - `docs/SEAL_CHECK_step6_final_gateclear.md`
 - `outputs/seal_checks/final_gateclear_snapshot.json`
+
+## Calculator Selective Update (2026-02-19)
+
+- Status: **Not seal-able (selective) in this cycle**.
+- Evidence:
+  - `docs/CALC_SELECTIVE_CLOSURE_REPORT.md`
+  - `outputs/seal_checks/calc_selective_compare.json`
+  - `outputs/seal_checks/calc_selective_skip_reason_examples.json`
+- Decision rationale:
+  - Full-set guardrails fail (`delta_fallback_ratio` > +0.03 in all S1-S3).
+  - Full numeric floor fails (`delta_numeric_em` << -0.01).
+  - S_calc subset conditions A/B are not met.
+
+CN:
+> 本轮 selective calculator 未通过闭环验收。虽然拒用理由分布可解释，但全量 guardrail 与 numeric_em 保底均未通过，因此当前仍定位为诊断模块而非可封装增益模块。
+
+EN:
+> The selective calculator does not pass closure acceptance in this cycle. Although skip reasons are interpretable, full-set guardrails and numeric-EM floor both fail, so it remains a diagnostic module rather than a sealable gain module.
