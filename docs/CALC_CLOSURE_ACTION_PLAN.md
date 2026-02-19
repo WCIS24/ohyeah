@@ -24,3 +24,13 @@
 - Bottleneck 1 -> `calculator.task_parser.mode=v2` + `calculator.task_parser.v2.min_conf`.
 - Bottleneck 2 -> improve calc hit rate so numeric path depends less on fallback-only text.
 - Bottleneck 3 -> `calculator.fact_selector.mode=scored_v1` + score audit in `calc_used_records.jsonl`.
+
+## 2026-02-19 Execution Update
+- Implemented and tested:
+  - Policy retry path in `src/calculator/compute.py`.
+  - Soft fallback + top-groups wiring in `scripts/run_with_calculator.py`.
+  - Route-split numeric metrics in `scripts/eval_numeric.py`.
+  - New closure matrix `configs/step6_matrix_calc_closure_v1.yaml`.
+- Latest closure matrix: `20260219_071245_dd1cc7`.
+- Result: no pass candidate under A/B + guardrail (`outputs/seal_checks/calc_closure_compare.json:169`).
+- Next priority (if continuing A-path): task coverage expansion (`lookup`) + better fact quality ranking; pure gate tightening is no longer first priority.

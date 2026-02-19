@@ -1,0 +1,111 @@
+experiments:
+  - label: calc_closure_c0_baseline
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c1_scored_hard
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=scored_v1
+      - calculator.selector.mode=scored_v1
+      - calculator.selector.soft_fallback=false
+      - calculator.selector.top_groups=1
+      - calculator.execution.top_pairs=1
+      - calculator.fact_selector.scored_v1.w_rank=1.0
+      - calculator.fact_selector.scored_v1.w_year=0.8
+      - calculator.fact_selector.scored_v1.w_unit=0.6
+      - calculator.fact_selector.scored_v1.w_entity=0.4
+      - calculator.fact_selector.scored_v1.w_keyword=0.6
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c2_scored_soft
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=scored_v1
+      - calculator.selector.mode=scored_v1
+      - calculator.selector.soft_fallback=true
+      - calculator.selector.top_groups=2
+      - calculator.execution.top_pairs=1
+      - calculator.fact_selector.scored_v1.w_rank=1.0
+      - calculator.fact_selector.scored_v1.w_year=0.8
+      - calculator.fact_selector.scored_v1.w_unit=0.6
+      - calculator.fact_selector.scored_v1.w_entity=0.4
+      - calculator.fact_selector.scored_v1.w_keyword=0.6
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c3_scored_soft_retry
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=scored_v1
+      - calculator.selector.mode=scored_v1
+      - calculator.selector.soft_fallback=true
+      - calculator.selector.top_groups=3
+      - calculator.execution.top_pairs=3
+      - calculator.fact_selector.scored_v1.w_rank=1.0
+      - calculator.fact_selector.scored_v1.w_year=0.8
+      - calculator.fact_selector.scored_v1.w_unit=0.6
+      - calculator.fact_selector.scored_v1.w_entity=0.4
+      - calculator.fact_selector.scored_v1.w_keyword=0.6
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt

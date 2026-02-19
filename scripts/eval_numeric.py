@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import os
 import re
@@ -279,13 +280,32 @@ def main() -> int:
     missing_gold = 0
     multi_pred = 0
     multi_gold = 0
+    fallback_reason_counts: Counter[str] = Counter()
+    calc_used_count = 0
+    fallback_count = 0
+    calc_used_em_all: List[int] = []
+    fallback_em_all: List[int] = []
+    calc_used_em_on_covered: List[int] = []
+    fallback_em_on_covered: List[int] = []
+    calc_used_covered_count = 0
+    fallback_covered_count = 0
 
     per_query_file = open(per_query_path, "w", encoding="utf-8") if write_per_query else None
     try:
         for rec in records:
             qid = rec.get("qid")
             gold = rec.get("answer", "")
-            pred = preds.get(qid, {}).get("pred_answer", "")
+            pred_row = preds.get(qid, {}) if qid in preds else {}
+            pred = pred_row.get("pred_answer", "")
+            fallback_reason = pred_row.get("fallback_reason")
+            if qid not in preds:
+                fallback_reason = "missing_prediction_row"
+            is_fallback = fallback_reason not in {None, ""}
+            if is_fallback:
+                fallback_count += 1
+                fallback_reason_counts[str(fallback_reason)] += 1
+            else:
+                calc_used_count += 1
 
             gold_nums = extract_numbers(gold)
             pred_nums = extract_numbers(pred)
@@ -317,6 +337,17 @@ def main() -> int:
                 rel_errors.append(rel_err)
                 em_list.append(em)
 
+            if is_fallback:
+                fallback_em_all.append(em)
+                if extracted_ok:
+                    fallback_covered_count += 1
+                    fallback_em_on_covered.append(em)
+            else:
+                calc_used_em_all.append(em)
+                if extracted_ok:
+                    calc_used_covered_count += 1
+                    calc_used_em_on_covered.append(em)
+
             if per_query_file is not None:
                 per_query_file.write(
                     json.dumps(
@@ -334,6 +365,8 @@ def main() -> int:
                             "abs_err": abs_err,
                             "rel_err": rel_err,
                             "extracted_ok": extracted_ok,
+                            "fallback_reason": fallback_reason,
+                            "calc_route": "fallback" if is_fallback else "calc_used",
                             "pred_text_snippet": snippet(pred),
                         },
                         ensure_ascii=False,
@@ -360,6 +393,27 @@ def main() -> int:
         "predictions_path": predictions_path,
         "extract_strategy": extract_strategy,
         "write_per_query": write_per_query,
+        "fallback_ratio": fallback_count / len(records) if records else 0.0,
+        "calc_used_ratio": calc_used_count / len(records) if records else 0.0,
+        "calc_used_em": mean(calc_used_em_all) if calc_used_em_all else 0.0,
+        "fallback_em": mean(fallback_em_all) if fallback_em_all else 0.0,
+        "gap_vs_fallback": (
+            (mean(calc_used_em_all) if calc_used_em_all else 0.0)
+            - (mean(fallback_em_all) if fallback_em_all else 0.0)
+        ),
+        "fallback_reason_counts": dict(fallback_reason_counts),
+        "calc_used": {
+            "count": calc_used_count,
+            "coverage": calc_used_covered_count / calc_used_count if calc_used_count else 0.0,
+            "em_all": mean(calc_used_em_all) if calc_used_em_all else 0.0,
+            "em_on_covered": mean(calc_used_em_on_covered) if calc_used_em_on_covered else 0.0,
+        },
+        "fallback": {
+            "count": fallback_count,
+            "coverage": fallback_covered_count / fallback_count if fallback_count else 0.0,
+            "em_all": mean(fallback_em_all) if fallback_em_all else 0.0,
+            "em_on_covered": mean(fallback_em_on_covered) if fallback_em_on_covered else 0.0,
+        },
     }
 
     metrics_path = os.path.join(run_dir, "numeric_metrics.json")

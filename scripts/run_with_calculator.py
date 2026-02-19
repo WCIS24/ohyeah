@@ -62,7 +62,7 @@ TASK_KEYWORDS: Dict[str, List[str]] = {
     "multiple": ["times", "multiple", "how many times", "\u500d", "\u591a\u5c11\u500d"],
 }
 
-VALID_FACT_SELECTOR_MODES = {"legacy_largest_group", "scored_v1"}
+VALID_FACT_SELECTOR_MODES = {"legacy", "legacy_largest_group", "scored_v1"}
 VALID_TASK_PARSER_MODES = {"v1", "v2"}
 
 
@@ -256,6 +256,18 @@ def compact_pair(row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _parse_optional_positive_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed <= 0:
+        return None
+    return parsed
+
+
 def select_legacy(facts: List[Fact]) -> Tuple[List[Fact], Dict[str, Any]]:
     if not facts:
         return [], {
@@ -309,6 +321,7 @@ def select_scored(
         "w_keyword": float(scored_cfg.get("w_keyword", 0.6)),
     }
     top_pairs = max(1, int(scored_cfg.get("top_pairs", 1)))
+    top_groups = _parse_optional_positive_int(scored_cfg.get("top_groups"))
     scored = [
         score_fact(
             fact,
@@ -322,7 +335,37 @@ def select_scored(
         for fact in facts
     ]
     scored.sort(key=lambda x: (float(x["score_total"]), float(x["fact"].confidence)), reverse=True)
-    candidate = scored[: min(24, len(scored))]
+
+    chosen_group_keys: List[List[Any]] = []
+    group_scores_top: List[Dict[str, Any]] = []
+    if top_groups is not None:
+        grouped_rows: Dict[Tuple[Optional[str], Optional[str], Optional[str]], List[Dict[str, Any]]] = {}
+        for row in scored:
+            fact = row["fact"]
+            gkey = (fact.metric, fact.entity, fact.unit)
+            grouped_rows.setdefault(gkey, []).append(row)
+        ranked_groups: List[Tuple[float, Tuple[Optional[str], Optional[str], Optional[str]]]] = []
+        for gkey, rows in grouped_rows.items():
+            max_score = max(float(r["score_total"]) for r in rows)
+            year_cov = len({r["fact"].year for r in rows if r["fact"].year is not None})
+            ranked_score = max_score + 0.20 * len(rows) + 0.10 * year_cov
+            ranked_groups.append((ranked_score, gkey))
+        ranked_groups.sort(key=lambda x: x[0], reverse=True)
+        selected_gkeys = {k for _s, k in ranked_groups[:top_groups]}
+        chosen_group_keys = [[k[0], k[1], k[2]] for k in selected_gkeys]
+        group_scores_top = [
+            {"group_key": [k[0], k[1], k[2]], "score": float(s)}
+            for s, k in ranked_groups[: min(5, len(ranked_groups))]
+        ]
+        filtered = [
+            row
+            for row in scored
+            if (row["fact"].metric, row["fact"].entity, row["fact"].unit) in selected_gkeys
+        ]
+        candidate = filtered[: min(24, len(filtered))] if filtered else scored[: min(24, len(scored))]
+    else:
+        candidate = scored[: min(24, len(scored))]
+
     pairs = []
     for i in range(len(candidate)):
         for j in range(i + 1, len(candidate)):
@@ -360,6 +403,9 @@ def select_scored(
         "task_hint": task_hint,
         "query_constraints": constraints,
         "weights": weights,
+        "top_groups": top_groups,
+        "selected_group_keys": chosen_group_keys,
+        "group_scores_top": group_scores_top,
         "selected_fact_count": len(selected),
         "selected_pair_count": len(chosen_pairs),
         "selected_chunk_ids": [str(f.chunk_id) for f in selected if f.chunk_id],
@@ -456,13 +502,31 @@ def main() -> int:
         task_parser_mode = "v1"
     task_parser_min_conf = float(get_path(resolved, "calculator.task_parser.v2.min_conf", 0.45))
 
-    fact_selector_mode = str(
-        get_path(resolved, "calculator.fact_selector.mode", "legacy_largest_group")
-    ).lower().strip()
+    selector_mode_override = get_path(resolved, "calculator.selector.mode", None)
+    if selector_mode_override is None:
+        fact_selector_mode = str(
+            get_path(resolved, "calculator.fact_selector.mode", "legacy_largest_group")
+        ).lower().strip()
+    else:
+        fact_selector_mode = str(selector_mode_override).lower().strip()
+    if fact_selector_mode == "legacy":
+        fact_selector_mode = "legacy_largest_group"
     if fact_selector_mode not in VALID_FACT_SELECTOR_MODES:
-        logger.warning("invalid calculator.fact_selector.mode=%s fallback=legacy", fact_selector_mode)
+        logger.warning("invalid calculator selector mode=%s fallback=legacy", fact_selector_mode)
         fact_selector_mode = "legacy_largest_group"
     fact_selector_scored = get_path(resolved, "calculator.fact_selector.scored_v1", {}) or {}
+    selector_soft_fallback = bool(get_path(resolved, "calculator.selector.soft_fallback", False))
+    selector_top_groups = _parse_optional_positive_int(
+        get_path(resolved, "calculator.selector.top_groups", None)
+    )
+    execution_top_pairs = _parse_optional_positive_int(
+        get_path(resolved, "calculator.execution.top_pairs", None)
+    )
+    if selector_top_groups is not None:
+        fact_selector_scored["top_groups"] = selector_top_groups
+    if execution_top_pairs is not None:
+        fact_selector_scored["top_pairs"] = execution_top_pairs
+    selector_top_pairs = max(1, int(fact_selector_scored.get("top_pairs", 1)))
 
     max_chunks_raw = get_path(resolved, "calculator.evidence.max_chunks_for_facts", None)
     if max_chunks_raw is None:
@@ -485,6 +549,12 @@ def main() -> int:
         fact_selector_mode,
     )
     logger.info("fact_selector_scored_v1=%s", fact_selector_scored)
+    logger.info(
+        "selector_soft_fallback=%s selector_top_groups=%s execution_top_pairs=%d",
+        selector_soft_fallback,
+        selector_top_groups,
+        selector_top_pairs,
+    )
     logger.info("calculator_max_chunks_for_facts=%s", max_chunks)
 
     retrieval_results_path = os.path.join(run_dir, "retrieval_results.jsonl")
@@ -510,6 +580,8 @@ def main() -> int:
     parser_v2_hits = 0
     selected_fact_total = 0
     selected_pair_total = 0
+    soft_fallback_attempts = 0
+    soft_fallback_hits = 0
 
     with open(retrieval_results_path, "w", encoding="utf-8") as retr_f, \
         open(facts_path, "w", encoding="utf-8") as facts_f, \
@@ -563,10 +635,14 @@ def main() -> int:
                 scored_cfg=fact_selector_scored,
                 task_hint=parsed.task_type,
             )
-            selector_mode_counts[selector_audit.get("mode", fact_selector_mode)] += 1
-            selector_reason_counts[selector_audit.get("reason", "unknown")] += 1
-            selected_fact_total += int(selector_audit.get("selected_fact_count", 0))
-            selected_pair_total += int(selector_audit.get("selected_pair_count", 0))
+            compute_policy = None
+            if selector_top_pairs > 1:
+                compute_policy = {
+                    "selector_mode": fact_selector_mode,
+                    "top_groups": selector_top_groups or 1,
+                    "top_pairs": selector_top_pairs,
+                    "soft_fallback": False,
+                }
 
             result, trace = compute_for_query(
                 query,
@@ -574,9 +650,60 @@ def main() -> int:
                 output_percent,
                 task_parser_mode=task_parser_mode,
                 task_parser_min_conf=task_parser_min_conf,
+                policy=compute_policy,
             )
+
+            if (
+                selector_soft_fallback
+                and fact_selector_mode == "scored_v1"
+                and result.status != "ok"
+                and qid_facts
+            ):
+                soft_fallback_attempts += 1
+                legacy_facts, legacy_audit = select_legacy(qid_facts)
+                fallback_policy = None
+                if selector_top_pairs > 1:
+                    fallback_policy = {
+                        "selector_mode": "legacy_largest_group",
+                        "top_groups": 1,
+                        "top_pairs": selector_top_pairs,
+                        "soft_fallback": False,
+                    }
+                retry_result, retry_trace = compute_for_query(
+                    query,
+                    legacy_facts,
+                    output_percent,
+                    task_parser_mode=task_parser_mode,
+                    task_parser_min_conf=task_parser_min_conf,
+                    policy=fallback_policy,
+                )
+                selector_audit["soft_fallback"] = {
+                    "attempted": True,
+                    "activated": False,
+                    "fallback_status": retry_result.status,
+                }
+                if retry_result.status == "ok":
+                    soft_fallback_hits += 1
+                    result = retry_result
+                    trace = retry_trace
+                    selected_facts = legacy_facts
+                    selector_audit = legacy_audit
+                    selector_audit["reason"] = "soft_fallback_to_legacy_ok"
+                    selector_audit["soft_fallback"] = {
+                        "attempted": True,
+                        "activated": True,
+                        "fallback_status": retry_result.status,
+                    }
+
+            selector_mode_counts[selector_audit.get("mode", fact_selector_mode)] += 1
+            selector_reason_counts[selector_audit.get("reason", "unknown")] += 1
+            selected_fact_total += int(selector_audit.get("selected_fact_count", 0))
+            selected_pair_total += int(selector_audit.get("selected_pair_count", 0))
+
             result.qid = qid
             trace.qid = qid
+            if selector_audit.get("soft_fallback", {}).get("attempted"):
+                trace.attempted_fallback_to_legacy = True
             status_counts[result.status] += 1
             task_counts[result.task_type] += 1
             parser_mode_counts[trace.parser_mode] += 1
@@ -665,8 +792,18 @@ def main() -> int:
                         "selected_numbers": selected_numbers,
                         "score_breakdown": {
                             "reason": selector_audit.get("reason"),
+                            "top_groups": selector_audit.get("top_groups"),
+                            "selected_group_keys": selector_audit.get("selected_group_keys", []),
+                            "group_scores_top": selector_audit.get("group_scores_top", []),
                             "top_fact_scores": selector_audit.get("top_fact_scores", []),
                             "selected_pairs": selector_audit.get("selected_pairs", []),
+                            "soft_fallback": selector_audit.get("soft_fallback", {}),
+                        },
+                        "compute_trace": {
+                            "selector_mode": trace.selector_mode,
+                            "tried_group_keys": trace.tried_group_keys,
+                            "tried_pair_count": trace.tried_pair_count,
+                            "attempted_fallback_to_legacy": trace.attempted_fallback_to_legacy,
                         },
                         "final_result": {
                             "status": result.status,
@@ -718,6 +855,12 @@ def main() -> int:
             "selected_pair_count_mean": selected_pair_total / total if total else 0.0,
             "configured_mode": fact_selector_mode,
             "configured_scored_v1": fact_selector_scored,
+            "configured_selector_mode": get_path(resolved, "calculator.selector.mode", None),
+            "configured_selector_top_groups": selector_top_groups,
+            "configured_execution_top_pairs": selector_top_pairs,
+            "soft_fallback_enabled": selector_soft_fallback,
+            "soft_fallback_attempts": soft_fallback_attempts,
+            "soft_fallback_hits": soft_fallback_hits,
         },
         "results_path": results_path,
         "traces_path": traces_path,

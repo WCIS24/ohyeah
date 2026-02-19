@@ -127,6 +127,10 @@ class CalcTrace:
     parser_rejected: bool = False
     parser_scores: Dict[str, float] = field(default_factory=dict)
     parser_rules: List[str] = field(default_factory=list)
+    selector_mode: str = "legacy"
+    tried_group_keys: List[List[object]] = field(default_factory=list)
+    tried_pair_count: int = 0
+    attempted_fallback_to_legacy: bool = False
 
 
 def _contains_any(text: str, keywords: List[str]) -> Optional[str]:
@@ -260,6 +264,104 @@ def select_group(groups: Dict[Tuple, List[Fact]]) -> Tuple[Optional[Tuple], List
             best_group = group
             best_key = key
     return best_key, best_group
+
+
+def _group_score(group: List[Fact]) -> float:
+    if not group:
+        return -1.0
+    conf_max = max(float(f.confidence) for f in group)
+    year_cov = len({f.year for f in group if f.year is not None})
+    unit_present = 1.0 if any(f.unit for f in group) else 0.0
+    metric_present = 1.0 if any(f.metric for f in group) else 0.0
+    missing_meta = sum(
+        int(f.year is None) + int(f.unit is None) + int(f.metric is None)
+        for f in group
+    ) / max(1, len(group))
+    return (
+        conf_max
+        + 0.20 * len(group)
+        + 0.15 * year_cov
+        + 0.10 * unit_present
+        + 0.10 * metric_present
+        - 0.10 * missing_meta
+    )
+
+
+def rank_group_keys(
+    groups: Dict[Tuple, List[Fact]],
+    mode: str,
+    top_groups: int,
+) -> List[Tuple]:
+    if not groups:
+        return []
+    if mode != "scored_v1":
+        key, _group = select_group(groups)
+        return [key] if key is not None else []
+    scored = sorted(groups.items(), key=lambda kv: _group_score(kv[1]), reverse=True)
+    limit = max(1, int(top_groups))
+    return [key for key, _group in scored[:limit]]
+
+
+def _serialize_group_key(key: Optional[Tuple]) -> List[object]:
+    if key is None:
+        return []
+    return [key[0], key[1], key[2]]
+
+
+def _candidate_pairs(group: List[Fact], top_pairs: int, task: str) -> List[List[Fact]]:
+    if len(group) < 2:
+        return []
+    facts_sorted = sorted(group, key=lambda f: float(f.confidence), reverse=True)
+    scored_pairs: List[Tuple[float, List[Fact]]] = []
+    for i in range(len(facts_sorted)):
+        for j in range(i + 1, len(facts_sorted)):
+            a = facts_sorted[i]
+            b = facts_sorted[j]
+            score = min(float(a.confidence), float(b.confidence))
+            if a.unit and b.unit and a.unit == b.unit:
+                score += 0.10
+            if task in {"yoy", "diff"} and a.year is not None and b.year is not None and a.year != b.year:
+                score += 0.08
+            if task in {"share", "multiple"}:
+                score += 0.05
+            scored_pairs.append((score, [a, b]))
+    scored_pairs.sort(key=lambda x: x[0], reverse=True)
+    limit = max(1, int(top_pairs))
+    return [pair for _score, pair in scored_pairs[:limit]]
+
+
+def _compute_task(
+    task: str,
+    query: str,
+    group: List[Fact],
+    output_percent: bool,
+) -> Tuple[CalcResult, CalcTrace]:
+    if task == "yoy":
+        return compute_yoy(query, group, output_percent)
+    if task == "diff":
+        return compute_diff(group)
+    if task == "share":
+        return compute_share(group)
+    if task == "multiple":
+        return compute_multiple(group)
+    result = CalcResult(
+        qid="",
+        task_type=task,
+        inputs=[],
+        result_value=None,
+        result_unit=None,
+        explanation="unsupported",
+        confidence=0.0,
+        status="no_match",
+    )
+    trace = CalcTrace(
+        qid="",
+        task_type=task,
+        selected_key=None,
+        candidates=0,
+        reason="unsupported",
+    )
+    return result, trace
 
 
 def compute_result_confidence(
@@ -769,6 +871,7 @@ def compute_for_query(
     output_percent: bool = True,
     task_parser_mode: str = "v1",
     task_parser_min_conf: float = 0.0,
+    policy: Optional[Dict[str, object]] = None,
 ) -> Tuple[CalcResult, CalcTrace]:
     parsed = parse_task(query, mode=task_parser_mode, min_conf=task_parser_min_conf)
     task = parsed.task_type
@@ -796,8 +899,8 @@ def compute_for_query(
         )
 
     groups = group_facts(facts)
-    key, group = select_group(groups)
-    if not group:
+    legacy_key, legacy_group = select_group(groups)
+    if not legacy_group:
         trace = CalcTrace(
             qid="",
             task_type=task,
@@ -820,64 +923,148 @@ def compute_for_query(
             trace,
         )
 
-    # Basic ambiguity check for non-year tasks.
-    if task in {"diff", "share", "multiple"}:
-        year_values = {f.year for f in group if f.year is not None}
-        if not year_values and len(group) > 2:
-            result = CalcResult(
-                qid="",
-                task_type=task,
-                inputs=[],
-                result_value=None,
-                result_unit=None,
-                explanation="ambiguous multiple candidates",
-                confidence=0.0,
-                status="ambiguous",
-            )
-            trace = CalcTrace(
-                qid="",
-                task_type=task,
-                selected_key=key,
-                candidates=len(group),
-                reason="ambiguous",
-            )
-            _attach_parser(trace, parsed)
-            return result, trace
+    # Backward-compatible path: preserve legacy behavior when no policy is provided.
+    if policy is None:
+        key = legacy_key
+        group = legacy_group
+        if task in {"diff", "share", "multiple"}:
+            year_values = {f.year for f in group if f.year is not None}
+            if not year_values and len(group) > 2:
+                result = CalcResult(
+                    qid="",
+                    task_type=task,
+                    inputs=[],
+                    result_value=None,
+                    result_unit=None,
+                    explanation="ambiguous multiple candidates",
+                    confidence=0.0,
+                    status="ambiguous",
+                )
+                trace = CalcTrace(
+                    qid="",
+                    task_type=task,
+                    selected_key=key,
+                    candidates=len(group),
+                    reason="ambiguous",
+                )
+                _attach_parser(trace, parsed)
+                return result, trace
+        result, trace = _compute_task(task, query, group, output_percent)
+        if result.status == "ok":
+            result.confidence = compute_result_confidence(task, result.inputs, group)
+        else:
+            result.confidence = 0.0
+        result.qid = ""
+        trace.qid = ""
+        trace.selected_key = key
+        _attach_parser(trace, parsed)
+        return result, trace
 
-    if task == "yoy":
-        result, trace = compute_yoy(query, group, output_percent)
-    elif task == "diff":
-        result, trace = compute_diff(group)
-    elif task == "share":
-        result, trace = compute_share(group)
-    elif task == "multiple":
-        result, trace = compute_multiple(group)
-    else:
-        result = CalcResult(
+    raw_mode = str(policy.get("selector_mode", policy.get("mode", "legacy_largest_group")))
+    selector_mode = raw_mode.strip().lower()
+    if selector_mode in {"legacy", "legacy_largest_group"}:
+        selector_mode = "legacy"
+    elif selector_mode != "scored_v1":
+        selector_mode = "legacy"
+    try:
+        top_groups = int(policy.get("top_groups", 1))
+    except (TypeError, ValueError):
+        top_groups = 1
+    top_groups = max(1, top_groups)
+    try:
+        top_pairs = int(policy.get("top_pairs", 1))
+    except (TypeError, ValueError):
+        top_pairs = 1
+    top_pairs = max(1, top_pairs)
+    soft_fallback = bool(policy.get("soft_fallback", False))
+
+    mode_for_ranking = "scored_v1" if selector_mode == "scored_v1" else "legacy"
+    primary_keys = rank_group_keys(groups, mode_for_ranking, top_groups)
+    if not primary_keys and legacy_key is not None:
+        primary_keys = [legacy_key]
+
+    attempted: set[Tuple] = set()
+    tried_group_keys: List[List[object]] = []
+    tried_pair_count = 0
+    attempted_fallback_to_legacy = False
+    selected_key = primary_keys[0] if primary_keys else legacy_key
+    selected_group = groups.get(selected_key, legacy_group) if selected_key is not None else legacy_group
+    last_result: Optional[CalcResult] = None
+    last_trace: Optional[CalcTrace] = None
+
+    def run_group(group: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
+        nonlocal tried_pair_count
+        if task in {"diff", "share", "multiple"} and top_pairs > 1:
+            pairs = _candidate_pairs(group, top_pairs, task)
+            if pairs:
+                pair_last: Optional[Tuple[CalcResult, CalcTrace]] = None
+                for pair_facts in pairs:
+                    tried_pair_count += 1
+                    pair_last = _compute_task(task, query, pair_facts, output_percent)
+                    if pair_last[0].status == "ok":
+                        return pair_last
+                if pair_last is not None:
+                    return pair_last
+        return _compute_task(task, query, group, output_percent)
+
+    for key in primary_keys:
+        if key not in groups:
+            continue
+        attempted.add(key)
+        tried_group_keys.append(_serialize_group_key(key))
+        group = groups[key]
+        selected_key = key
+        selected_group = group
+        result, trace = run_group(group)
+        last_result, last_trace = result, trace
+        if result.status == "ok":
+            break
+
+    needs_fallback = (
+        selector_mode == "scored_v1"
+        and soft_fallback
+        and last_result is not None
+        and last_result.status != "ok"
+        and legacy_key is not None
+        and legacy_key not in attempted
+    )
+    if needs_fallback:
+        attempted_fallback_to_legacy = True
+        tried_group_keys.append(_serialize_group_key(legacy_key))
+        selected_key = legacy_key
+        selected_group = legacy_group
+        last_result, last_trace = run_group(legacy_group)
+
+    if last_result is None or last_trace is None:
+        last_result = CalcResult(
             qid="",
             task_type=task,
             inputs=[],
             result_value=None,
             result_unit=None,
-            explanation="unsupported",
+            explanation="no_match",
             confidence=0.0,
             status="no_match",
         )
-        trace = CalcTrace(
+        last_trace = CalcTrace(
             qid="",
             task_type=task,
-            selected_key=None,
-            candidates=len(facts),
-            reason="unsupported",
+            selected_key=selected_key,
+            candidates=len(selected_group),
+            reason="no_match",
         )
 
-    if result.status == "ok":
-        result.confidence = compute_result_confidence(task, result.inputs, group)
+    if last_result.status == "ok":
+        last_result.confidence = compute_result_confidence(task, last_result.inputs, selected_group)
     else:
-        result.confidence = 0.0
+        last_result.confidence = 0.0
 
-    result.qid = ""
-    trace.qid = ""
-    trace.selected_key = key
-    _attach_parser(trace, parsed)
-    return result, trace
+    last_result.qid = ""
+    last_trace.qid = ""
+    last_trace.selected_key = selected_key
+    last_trace.selector_mode = selector_mode
+    last_trace.tried_group_keys = tried_group_keys
+    last_trace.tried_pair_count = tried_pair_count
+    last_trace.attempted_fallback_to_legacy = attempted_fallback_to_legacy
+    _attach_parser(last_trace, parsed)
+    return last_result, last_trace

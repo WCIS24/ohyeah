@@ -65,6 +65,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
                 "top_pairs": 1,
             },
         },
+        "selector": {
+            "mode": None,
+            "soft_fallback": False,
+            "top_groups": None,
+        },
+        "execution": {
+            "top_pairs": None,
+        },
         "parsing": {
             "rounding": 4,
             "thousand_sep": ",",
@@ -160,6 +168,10 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "calculator.fact_selector.scored_v1.w_entity": (float, int),
     "calculator.fact_selector.scored_v1.w_keyword": (float, int),
     "calculator.fact_selector.scored_v1.top_pairs": (int,),
+    "calculator.selector.mode": (str, type(None)),
+    "calculator.selector.soft_fallback": (bool,),
+    "calculator.selector.top_groups": (int, type(None)),
+    "calculator.execution.top_pairs": (int, type(None)),
     "calculator.parsing.rounding": (int,),
     "calculator.parsing.thousand_sep": (str,),
     "calculator.parsing.unit_map": (dict,),
