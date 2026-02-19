@@ -1,0 +1,39 @@
+experiments:
+  - label: calc_diag_m13_baseline
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_diag_m13_fact_top3
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.evidence.max_chunks_for_facts=3
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt

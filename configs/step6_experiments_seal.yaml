@@ -59,3 +59,15 @@ experiments:
   - label: m13_pqe_calc
     run_id: 20260218_160058_ee7290/runs/20260218_160058_ee7290_m04
     group: ablation
+  - label: calc_closure_c0_baseline
+    run_id: 20260219_034734_85fe50/runs/20260219_034734_85fe50_m01
+    group: ablation
+  - label: calc_closure_c1_task_parser_v2
+    run_id: 20260219_034734_85fe50/runs/20260219_034734_85fe50_m02
+    group: ablation
+  - label: calc_closure_c2_fact_selector_scored
+    run_id: 20260219_034734_85fe50/runs/20260219_034734_85fe50_m03
+    group: ablation
+  - label: calc_closure_c3_parser_v2_plus_scored
+    run_id: 20260219_034734_85fe50/runs/20260219_034734_85fe50_m04
+    group: ablation

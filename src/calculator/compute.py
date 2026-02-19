@@ -1,28 +1,105 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from calculator.extract import Fact
 
-YOY_KW = [
-    "yoy",
-    "year over year",
-    "growth",
-    "increase",
-    "decrease",
-    "同比",
-    "增速",
-    "增长率",
-    "增长",
-    "下降",
-]
-DIFF_KW = ["difference", "change", "delta", "diff", "差值", "变化", "增减", "差异"]
-SHARE_KW = ["share", "percentage", "portion", "占比", "比例", "份额"]
-MULT_KW = ["times", "multiple", "倍", "倍数"]
-
 YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
+
+V1_KEYWORDS: Dict[str, List[str]] = {
+    "yoy": [
+        "yoy",
+        "year over year",
+        "growth",
+        "increase",
+        "decrease",
+        "\u540c\u6bd4",
+        "\u73af\u6bd4",
+        "\u589e\u957f",
+        "\u589e\u901f",
+        "\u6da8\u8dcc\u5e45",
+        "\u53d8\u5316\u7387",
+    ],
+    "diff": [
+        "difference",
+        "change",
+        "delta",
+        "diff",
+        "\u5dee\u503c",
+        "\u5dee\u989d",
+        "\u53d8\u5316",
+        "\u589e\u52a0",
+        "\u51cf\u5c11",
+    ],
+    "share": [
+        "share",
+        "percentage",
+        "portion",
+        "\u5360\u6bd4",
+        "\u6bd4\u4f8b",
+        "\u4efd\u989d",
+        "\u767e\u5206\u6bd4",
+    ],
+    "multiple": [
+        "times",
+        "multiple",
+        "\u500d",
+        "\u500d\u6570",
+    ],
+}
+
+V2_PATTERNS: List[Tuple[str, str, str, float]] = [
+    ("yoy_explicit", r"\byoy\b|year\s*over\s*year|\u540c\u6bd4|\u73af\u6bd4", "yoy", 0.90),
+    (
+        "yoy_rate",
+        r"growth\s*rate|rate\s*of\s*change|increase\s*rate|decrease\s*rate|\u589e\u957f\u7387|\u589e\u901f|\u53d8\u5316\u7387",
+        "yoy",
+        0.70,
+    ),
+    (
+        "diff_explicit",
+        r"\bdifference\b|\bdelta\b|\bdiff\b|how\s*much\s*(?:increase|decrease|change)|\u5dee\u503c|\u5dee\u989d|\u589e\u52a0|\u51cf\u5c11",
+        "diff",
+        0.80,
+    ),
+    (
+        "diff_from_to",
+        r"from\s+.+\s+to\s+.+|\u4ece.+\u5230.+",
+        "diff",
+        0.60,
+    ),
+    (
+        "share_explicit",
+        r"\bshare\b|portion|percentage\s+of|\u5360\u6bd4|\u6bd4\u4f8b|\u4efd\u989d",
+        "share",
+        0.85,
+    ),
+    (
+        "multiple_explicit",
+        r"\btimes\b|\bmultiple\b|\u500d\u6570|\u591a\u5c11\u500d",
+        "multiple",
+        0.85,
+    ),
+    (
+        "percent_point",
+        r"percentage\s*point|\u767e\u5206\u70b9",
+        "diff",
+        0.70,
+    ),
+]
+
+
+@dataclass
+class TaskParseResult:
+    task_type: Optional[str]
+    confidence: float
+    rule: Optional[str]
+    mode: str
+    rejected: bool = False
+    scores: Dict[str, float] = field(default_factory=dict)
+    rules: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -44,19 +121,127 @@ class CalcTrace:
     selected_key: Optional[Tuple]
     candidates: int
     reason: str
+    parser_mode: str = "v1"
+    parser_confidence: float = 0.0
+    parser_rule: Optional[str] = None
+    parser_rejected: bool = False
+    parser_scores: Dict[str, float] = field(default_factory=dict)
+    parser_rules: List[str] = field(default_factory=list)
+
+
+def _contains_any(text: str, keywords: List[str]) -> Optional[str]:
+    for kw in keywords:
+        if kw and kw in text:
+            return kw
+    return None
+
+
+def parse_task_v1(query: str) -> TaskParseResult:
+    q = (query or "").lower()
+    for task in ["yoy", "diff", "share", "multiple"]:
+        hit = _contains_any(q, [k.lower() for k in V1_KEYWORDS[task]])
+        if hit:
+            return TaskParseResult(
+                task_type=task,
+                confidence=1.0,
+                rule=f"v1:{task}:{hit}",
+                mode="v1",
+                rejected=False,
+                scores={task: 1.0},
+                rules=[f"v1:{task}:{hit}"],
+            )
+    return TaskParseResult(
+        task_type=None,
+        confidence=0.0,
+        rule=None,
+        mode="v1",
+        rejected=False,
+        scores={},
+        rules=[],
+    )
+
+
+def parse_task_v2(query: str, min_conf: float) -> TaskParseResult:
+    q = query or ""
+    q_lower = q.lower()
+    scores: Dict[str, float] = {"yoy": 0.0, "diff": 0.0, "share": 0.0, "multiple": 0.0}
+    rule_hits: List[str] = []
+
+    def hit(task: str, rule_id: str, score: float) -> None:
+        scores[task] = scores.get(task, 0.0) + float(score)
+        rule_hits.append(rule_id)
+
+    for rule_id, pat, task, score in V2_PATTERNS:
+        if re.search(pat, q, flags=re.IGNORECASE):
+            hit(task, f"v2:{rule_id}", score)
+
+    years = [int(m.group(0)) for m in YEAR_RE.finditer(q)]
+    years = sorted(set(years))
+    if len(years) >= 2:
+        if any(x in q_lower for x in ["growth", "change", "increase", "decrease", "yoy"]):
+            hit("yoy", "v2:two_years_plus_growth", 0.40)
+        if "from" in q_lower and "to" in q_lower:
+            hit("diff", "v2:two_years_from_to", 0.25)
+
+    if any(x in q_lower for x in ["how much", "how many", "what is the"]):
+        if "%" in q or "percent" in q_lower:
+            hit("yoy", "v2:how_much_percent", 0.25)
+            hit("share", "v2:how_much_percent", 0.15)
+        else:
+            hit("diff", "v2:how_much_numeric", 0.20)
+
+    if any(x in q_lower for x in ["up", "down", "fell", "rose", "drop", "gain"]):
+        hit("diff", "v2:directional_terms", 0.20)
+
+    positive_scores = [s for s in scores.values() if s > 0]
+    if not positive_scores:
+        return TaskParseResult(
+            task_type=None,
+            confidence=0.0,
+            rule=None,
+            mode="v2",
+            rejected=False,
+            scores=scores,
+            rules=rule_hits,
+        )
+
+    task_type = max(scores.items(), key=lambda kv: kv[1])[0]
+    best_score = scores[task_type]
+    total_score = sum(positive_scores)
+    confidence = best_score / total_score if total_score > 0 else 0.0
+    confidence = max(confidence, min(1.0, best_score))
+
+    rejected = confidence < float(min_conf)
+    if rejected:
+        return TaskParseResult(
+            task_type=None,
+            confidence=confidence,
+            rule=rule_hits[0] if rule_hits else None,
+            mode="v2",
+            rejected=True,
+            scores=scores,
+            rules=rule_hits,
+        )
+    return TaskParseResult(
+        task_type=task_type,
+        confidence=confidence,
+        rule=rule_hits[0] if rule_hits else None,
+        mode="v2",
+        rejected=False,
+        scores=scores,
+        rules=rule_hits,
+    )
+
+
+def parse_task(query: str, mode: str = "v1", min_conf: float = 0.0) -> TaskParseResult:
+    parser_mode = (mode or "v1").strip().lower()
+    if parser_mode == "v2":
+        return parse_task_v2(query, min_conf=min_conf)
+    return parse_task_v1(query)
 
 
 def detect_task(query: str) -> Optional[str]:
-    q = query.lower()
-    if any(k in q for k in YOY_KW):
-        return "yoy"
-    if any(k in q for k in DIFF_KW):
-        return "diff"
-    if any(k in q for k in SHARE_KW):
-        return "share"
-    if any(k in q for k in MULT_KW):
-        return "multiple"
-    return None
+    return parse_task(query, mode="v1", min_conf=0.0).task_type
 
 
 def group_facts(facts: List[Fact]) -> Dict[Tuple, List[Fact]]:
@@ -139,7 +324,7 @@ def compute_yoy(
         selected = pick_values_for_years(facts, years_use)
 
     if not selected:
-        # fallback: pick two facts with distinct years by confidence
+        # Fallback: pick two facts with distinct years by confidence.
         facts_with_year = [f for f in facts if f.year is not None]
         facts_with_year = sorted(facts_with_year, key=lambda x: x.confidence, reverse=True)
         unique = {}
@@ -569,13 +754,33 @@ def compute_multiple(facts: List[Fact]) -> Tuple[CalcResult, CalcTrace]:
     )
 
 
+def _attach_parser(trace: CalcTrace, parsed: TaskParseResult) -> None:
+    trace.parser_mode = parsed.mode
+    trace.parser_confidence = parsed.confidence
+    trace.parser_rule = parsed.rule
+    trace.parser_rejected = parsed.rejected
+    trace.parser_scores = dict(parsed.scores)
+    trace.parser_rules = list(parsed.rules)
+
+
 def compute_for_query(
     query: str,
     facts: List[Fact],
     output_percent: bool = True,
+    task_parser_mode: str = "v1",
+    task_parser_min_conf: float = 0.0,
 ) -> Tuple[CalcResult, CalcTrace]:
-    task = detect_task(query)
+    parsed = parse_task(query, mode=task_parser_mode, min_conf=task_parser_min_conf)
+    task = parsed.task_type
     if not task:
+        trace = CalcTrace(
+            qid="",
+            task_type="unknown",
+            selected_key=None,
+            candidates=len(facts),
+            reason="no_task",
+        )
+        _attach_parser(trace, parsed)
         return (
             CalcResult(
                 qid="",
@@ -587,18 +792,20 @@ def compute_for_query(
                 confidence=0.0,
                 status="no_match",
             ),
-            CalcTrace(
-                qid="",
-                task_type="unknown",
-                selected_key=None,
-                candidates=len(facts),
-                reason="no_task",
-            ),
+            trace,
         )
 
     groups = group_facts(facts)
     key, group = select_group(groups)
     if not group:
+        trace = CalcTrace(
+            qid="",
+            task_type=task,
+            selected_key=None,
+            candidates=0,
+            reason="no_facts",
+        )
+        _attach_parser(trace, parsed)
         return (
             CalcResult(
                 qid="",
@@ -610,10 +817,10 @@ def compute_for_query(
                 confidence=0.0,
                 status="no_match",
             ),
-            CalcTrace(qid="", task_type=task, selected_key=None, candidates=0, reason="no_facts"),
+            trace,
         )
 
-    # basic ambiguity check for non-year tasks
+    # Basic ambiguity check for non-year tasks.
     if task in {"diff", "share", "multiple"}:
         year_values = {f.year for f in group if f.year is not None}
         if not year_values and len(group) > 2:
@@ -634,6 +841,7 @@ def compute_for_query(
                 candidates=len(group),
                 reason="ambiguous",
             )
+            _attach_parser(trace, parsed)
             return result, trace
 
     if task == "yoy":
@@ -671,4 +879,5 @@ def compute_for_query(
     result.qid = ""
     trace.qid = ""
     trace.selected_key = key
+    _attach_parser(trace, parsed)
     return result, trace

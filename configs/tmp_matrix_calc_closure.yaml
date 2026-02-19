@@ -1,0 +1,98 @@
+experiments:
+  - label: calc_closure_c0_baseline
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c1_task_parser_v2
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v2
+      - calculator.task_parser.v2.min_conf=0.45
+      - calculator.fact_selector.mode=legacy_largest_group
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c2_fact_selector_scored
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v1
+      - calculator.fact_selector.mode=scored_v1
+      - calculator.fact_selector.scored_v1.w_rank=1.0
+      - calculator.fact_selector.scored_v1.w_year=0.8
+      - calculator.fact_selector.scored_v1.w_unit=0.6
+      - calculator.fact_selector.scored_v1.w_entity=0.4
+      - calculator.fact_selector.scored_v1.w_keyword=0.6
+      - calculator.fact_selector.scored_v1.top_pairs=1
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt
+
+  - label: calc_closure_c3_parser_v2_plus_scored
+    tag: seal_ablation
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - calculator.task_parser.mode=v2
+      - calculator.task_parser.v2.min_conf=0.45
+      - calculator.fact_selector.mode=scored_v1
+      - calculator.fact_selector.scored_v1.w_rank=1.0
+      - calculator.fact_selector.scored_v1.w_year=0.8
+      - calculator.fact_selector.scored_v1.w_unit=0.6
+      - calculator.fact_selector.scored_v1.w_entity=0.4
+      - calculator.fact_selector.scored_v1.w_keyword=0.6
+      - calculator.fact_selector.scored_v1.top_pairs=1
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - eval.subsets.complex_path=data/subsets_v2/dev_complex_qids.txt
+      - eval.subsets.abbrev_path=data/subsets_v2/dev_abbrev_qids.txt
+      - eval.subsets.numeric_path=data/subsets_v2/dev_numeric_qids.txt

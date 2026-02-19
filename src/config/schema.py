@@ -45,6 +45,26 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "allow_inferred": False,
             "allow_task_types": ["yoy", "diff"],
         },
+        "task_parser": {
+            "mode": "v1",
+            "v2": {
+                "min_conf": 0.45,
+            },
+        },
+        "evidence": {
+            "max_chunks_for_facts": None,
+        },
+        "fact_selector": {
+            "mode": "legacy_largest_group",
+            "scored_v1": {
+                "w_rank": 1.0,
+                "w_year": 0.8,
+                "w_unit": 0.6,
+                "w_entity": 0.4,
+                "w_keyword": 0.6,
+                "top_pairs": 1,
+            },
+        },
         "parsing": {
             "rounding": 4,
             "thousand_sep": ",",
@@ -130,6 +150,16 @@ SCHEMA_TYPES: Dict[str, Tuple[type, ...]] = {
     "calculator.gate.require_year_match": (bool,),
     "calculator.gate.allow_inferred": (bool,),
     "calculator.gate.allow_task_types": (list,),
+    "calculator.task_parser.mode": (str,),
+    "calculator.task_parser.v2.min_conf": (float, int),
+    "calculator.evidence.max_chunks_for_facts": (int, type(None)),
+    "calculator.fact_selector.mode": (str,),
+    "calculator.fact_selector.scored_v1.w_rank": (float, int),
+    "calculator.fact_selector.scored_v1.w_year": (float, int),
+    "calculator.fact_selector.scored_v1.w_unit": (float, int),
+    "calculator.fact_selector.scored_v1.w_entity": (float, int),
+    "calculator.fact_selector.scored_v1.w_keyword": (float, int),
+    "calculator.fact_selector.scored_v1.top_pairs": (int,),
     "calculator.parsing.rounding": (int,),
     "calculator.parsing.thousand_sep": (str,),
     "calculator.parsing.unit_map": (dict,),
