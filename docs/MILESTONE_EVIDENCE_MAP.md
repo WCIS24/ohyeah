@@ -1,130 +1,41 @@
 # Milestone Evidence Map
 
-Generated (UTC): 2026-02-18T17:46:57.199369+00:00
+- Seal matrix id: `20260228_055920_06d6bb`
+- Freeze commit observed locally: `a6f67fb2c588f47303bd84c4382b41ff1cd24b7f`
+- Mapping check: passed. All table labels and run_id values map to `configs/step6_experiments_seal.yaml`.
+- Audit note: every `outputs/*` pointer below is local-only and not remotely verifiable under seal rules.
+- Alias note: Some SEAL docs still use legacy aliases such as `m11_pqe` / `m13_pqe_calc`; this map resolves evidence by current table rows and run_id in `configs/step6_experiments_seal.yaml`.
 
-## Traceability Gate
-- Status: OK
-- rows_checked: 52
-- blockers: 0
-- Source mapping: `configs/step6_experiments_seal.yaml`
-- Source tables: `docs/TABLE_MAIN.md`, `docs/TABLE_NUMERIC.md`, `docs/TABLE_ABLATION.md`
+## Evidence Table
 
-## Module Evidence Table
-| Module | Defect | Implementation (<=3 refs) | Ablation design (run_id) | Metrics and conclusion |
-| --- | --- | --- | --- | --- |
-| Query preprocessing (PQE) | Single-query retrieval misses year constraints and acronym expansions, hurting complex and abbrev recall. | `src/retrieval/query_expansion.py:71-77`<br>`src/retrieval/query_expansion.py:149-173`<br>`scripts/eval_retrieval.py:72-103` | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02`<br>`20260218_160058_ee7290/runs/20260218_160058_ee7290_m03` | full/complex/abbrev R@10=0.3789/0.3951/0.3713<br>Conclusion=Moderate<br>m11_pqe vs m12_pqe_abbrev_only: complex R@10 +0.0123; prf_year_expanded_count 0 -> 483 (evidence: outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m02_retrieval_full/qexpand_stats.json, outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m03_retrieval_full/qexpand_stats.json). |
-| Retriever FT and mode (pre-FT/post-FT, dense/bm25/hybrid) | Pre-FT and sparse retrieval underperform for semantic finance QA. | `src/retrieval/retriever.py:141-161`<br>`src/retrieval/retriever.py:153-160`<br>`scripts/run_experiment.py:233-288` | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01`<br>`20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03`<br>`20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04` | full/complex/abbrev R@10=0.3246/0.3457/0.3174<br>Conclusion=Strong<br>m02_postFT_dense vs m01_preFT_dense: full R@10 +0.0544, complex R@10 +0.0494, abbrev R@10 +0.0539 (evidence: docs/TABLE_MAIN.md:3-6 and mapped summary.json files). |
-| Replacement module (PQE vs multistep baseline) | Multistep adds orchestration complexity with limited retrieval gain. | `src/multistep/engine.py:114-148`<br>`scripts/run_experiment.py:129-167`<br>`src/retrieval/retriever.py:183-210` | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05`<br>`20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06` | full/complex/abbrev R@10=0.3789/0.3951/0.3713<br>Conclusion=Moderate<br>m11_pqe vs m05_multistep: complex R@10 +0.0123, full R@10 +0.0053 (evidence: outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m02/summary.json, outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05/summary.json). |
-| Calculator gate / allow_task_types / fallback | Calculator dispatch is fallback-heavy; coverage/EM tradeoff remains unresolved. | `src/calculator/compute.py:49-59`<br>`src/calculator/compute.py:572-669`<br>`scripts/run_with_calculator.py:255-325` | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07`<br>`20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08`<br>`20260217_174322_d71045/runs/20260217_174322_d71045_m01`<br>`20260218_032001_2056e7/runs/20260218_032001_2056e7_m03` | full/complex/abbrev R@10=0.3789/0.3951/0.3713<br>numeric delta m13-m08: coverage=0.0172, EM=-0.0118<br>Conclusion=Negative<br>m13_pqe_calc vs m08_allow_yoy_diff: coverage +0.0172, EM -0.0118; gate_task fallback m07=570, m08=465, m08d=432, m13=465 (evidence: calc_stats.json under each run _calc folder). |
-| Numeric extraction strategy (first vs result_tag) | Numeric extraction can pick non-answer numbers unless strategy is explicit and auditable. | `scripts/eval_numeric.py:149-167`<br>`scripts/eval_numeric.py:170-200`<br>`scripts/eval_numeric.py:298-332` | `seal_a2_numeric_first`<br>`seal_a2_numeric_result_tag`<br>`20260218_160058_ee7290/runs/20260218_160058_ee7290_m04` | full/complex/abbrev R@10=0.3842/0.4074/0.3752<br>numeric delta result_tag-first: coverage=0.0000, EM=0.0000<br>Conclusion=Weak<br>result_tag vs first: delta coverage=0.0000, delta EM=0.0000, query-level diffs=30 (evidence: outputs/seal_checks/numeric_extraction_strategy_compare.json). |
-| Subset protocol (complex/abbrev/numeric, subsets_v2) | Subset definitions require versioned rules and pinned paths to avoid evaluation drift. | `scripts/build_subsets.py:23-61`<br>`scripts/build_subsets.py:162-170`<br>`scripts/run_experiment.py:247-281` | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02`<br>`20260218_160058_ee7290/runs/20260218_160058_ee7290_m02` | full/complex/abbrev R@10=0.3789/0.3951/0.3713<br>subset sizes c/a/n=243/501/466<br>Conclusion=Strong<br>subsets_v2 counts: complex=243, abbrev=501, numeric=466; rule_hits.two_years=49 (evidence: data/subsets_v2/subsets_stats.json and outputs/20260218_160058_ee7290/matrix.json). |
+| Module | Current placement / toggles | Defect | Contrast (runA vs runB) | Metrics and delta | Conclusion | Evidence pointer |
+| --- | --- | --- | --- | --- | --- | --- |
+| Retriever FT | Entry retriever; switched by retriever.dense.model_name_or_path in m01/m02. | Pre-FT dense retrieval under-recovers evidence on full, complex, and abbrev queries. | seal_mvp01_preft_dense_singlestep vs seal_mvp02_dense_singlestep | full_r10 0.3246 -> 0.3789 (+0.0543); full_mrr10 0.2030 -> 0.2554 (+0.0524); complex_r10 0.3457 -> 0.3951 (+0.0494); abbrev_r10 0.3174 -> 0.3713 (+0.0539) | Strong: Post-FT dense retriever gives clear cross-subset gains and remains the sealed retrieval foundation. | docs/TABLE_MAIN.md:3; docs/TABLE_MAIN.md:4; docs/SEAL_CHECK_step3_retriever.md:10; docs/SEAL_CHECK_step6_final_gateclear.md:52 |
+| Retrieval Mode Contrast | Retriever mode choice via retriever.mode in m02/m03/m04. | The chain needs a sealed mode choice between dense, bm25, and hybrid. | seal_mvp02_dense_singlestep vs seal_mvp03_bm25_singlestep vs seal_mvp04_hybrid_singlestep | dense vs bm25 full_r10 advantage +0.1543; dense vs hybrid full_r10 advantage +0.0298; dense full_mrr10=0.2554, bm25=0.1266, hybrid=0.2092 | Strong: Dense is the only stable sealed mode; bm25 loses heavily and hybrid still trails dense. | docs/TABLE_MAIN.md:4; docs/TABLE_MAIN.md:5; docs/TABLE_MAIN.md:6; docs/SEAL_CHECK_step6_final_gateclear.md:53 |
+| Multistep Baseline | Iterative retrieval branch toggled by multistep.enabled, max_steps, and gate settings in m05-m10. | It aims to recover missing evidence through extra steps, but the chain shows no measurable retrieval lift. | seal_mvp02_dense_singlestep vs seal_mvp05_dense_multistep, plus gate-open and gate-disabled ablations | m02 -> m05 full_r10 0.3789 -> 0.3789 (+0.0000); full_mrr10 0.2554 -> 0.2556 (+0.0002); local stop_reasons m05={'MAX_STEPS': 45, 'GATE_BLOCKED': 525}, m09={'NO_GAP': 570}, m10={'NO_GAP': 570} | Negative: Metrics stay flat and logs show the branch is mostly blocked by the gap gate or exits with NO_GAP. | docs/TABLE_MAIN.md:4; docs/TABLE_MAIN.md:7; docs/TABLE_ABLATION.md:4; docs/TABLE_ABLATION.md:6; outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m05_ms/logs.txt:9 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m09_ms/logs.txt:9 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m10_ms/logs.txt:9 (local-only, not remotely verifiable) |
+| PQE Replacement For Multistep | Query-side replacement switched by qexpand.* in m18 and ablated in m19. | After multistep stalls, the chain still needs year-aware or abbreviation-aware expansion without iterative retrieval. | seal_mvp02_dense_singlestep vs seal_mvp11_dense_pqe, with seal_mvp12_dense_pqe_abbrev_only isolating PRF-year | m02 -> m18 full_r10 0.3789 -> 0.3842 (+0.0053); complex_r10 0.3951 -> 0.4074 (+0.0123); abbrev_r10 0.3713 -> 0.3752 (+0.0039); local qexpand_stats m18 expanded=483 prf_year=483 abbrev=11; m19 expanded=11 prf_year=0 abbrev=11 | Moderate: PQE gives small but consistent retrieval gains, strongest on the complex subset, and the main marginal lift comes from PRF-year expansion. | docs/TABLE_MAIN.md:4; docs/TABLE_MAIN.md:20; docs/TABLE_ABLATION.md:13; docs/SEAL_CHECK_step6_final_gateclear.md:54; docs/SEAL_CHECK_step6_final_gateclear.md:55; outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m18/logs.txt:16 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m19/logs.txt:16 (local-only, not remotely verifiable) |
+| Calculator Standalone | Answer-side numeric module toggled by calculator.enabled, gate settings, and allow-list changes in m11-m15. | The numeric chain needs arithmetic support, but current calculator routing has high fallback and very weak calc-used accuracy. | seal_mvp07_dense_calc_empty_allow vs seal_mvp08_dense_calc_allow_yoy_diff, with m13/m15 as gate and task-space ablations | m11 -> m12 num_cov 0.6180 -> 0.6695 (+0.0515); num_em 0.3964 -> 0.3197 (-0.0767); fallback_ratio m12=0.8596, m13=0.8000, m15=0.8053 | Negative: Calculator variants trade coverage, EM, and fallback in unstable ways, and closure reports explicitly downgrade the module to diagnostic status. | docs/TABLE_NUMERIC.md:13; docs/TABLE_NUMERIC.md:14; docs/TABLE_NUMERIC.md:15; docs/TABLE_NUMERIC.md:17; docs/CALC_CLOSURE_REPORT.md:82; docs/CALC_DIAGNOSIS_REPORT.md:112; docs/SEAL_DECISION.md:60 |
+| Combination C (Current Seal: PQE + Calculator) | Current deployed combination is m20 with qexpand.* plus calculator.*; explicit internal combo routing exists only in the local comboC prototype. | The intended goal is to turn retrieval-side gains into a closed numeric chain, but the current combination still fails closure. | current seal: m12 vs m20; supplemental local-only prototype: comboC baseline vs A-only vs B-only vs C-full | current seal m12 -> m20 num_cov 0.6695 -> 0.6867 (+0.0172); num_em 0.3197 -> 0.3079 (-0.0118); num_rel 296.5772 -> 288.1516 (-8.4256); local comboC baseline -> C-full dev_numeric em 0.3079 -> 0.1329, cov 0.6867 -> 0.7554 | Weak: The current seal combination proves interaction, not closure: coverage rises, EM falls, and the local comboC prototype is also net-negative. | docs/TABLE_MAIN.md:20; docs/TABLE_NUMERIC.md:14; docs/TABLE_ABLATION.md:14; docs/TABLE_NUMERIC.md:22; docs/SEAL_CHECK_step6_final_gateclear.md:56; outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m20/logs.txt:64 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m20/logs.txt:78 (local-only, not remotely verifiable); docs/SEAL_CHECK_comboC.md:76; outputs/seal_checks/comboC_subset_eval_summary.json (local-only, not remotely verifiable) |
+| Subset Semantics (complex / abbrev / numeric) | Evaluation contract documented in data/subsets_v2/subsets_stats.json but not yet enforced by current resolved seal configs. | Without a stable subset contract, gains on complex, abbrev, and numeric slices cannot be interpreted consistently. | documented subsets_v2 contract vs current resolved seal paths in m18/m20 | subsets_v2 counts complex=243, abbrev=501, numeric=466, two_years=49; current seal configs still resolve to data/subsets/dev_* | Moderate: The repaired subset contract exists and is quantified, but the current seal run still resolves to legacy subset paths, so semantics are documented more strongly than they are enforced. | docs/SEAL_DECISION.md:11; docs/SEAL_CHECK_step6_final_gateclear.md:16; data/subsets_v2/subsets_stats.json:15 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m18/config.resolved.yaml:188 (local-only, not remotely verifiable); outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m20/config.resolved.yaml:188 (local-only, not remotely verifiable); configs/step6_base.yaml:78 |
 
-## Risks And Limits
-### Query preprocessing (PQE)
-- Conclusion level: Moderate
-- Risks/limits:
-  - No multi-seed variance estimate is reported.
-  - boost=0.15 is not sensitivity-tested in this gate set.
-- Next steps:
-  - Run seed sweep for m11 vs m12 under subsets_v2.
-  - Tune qexpand.boost and seed_top_k with fixed retriever weights.
-### Retriever FT and mode (pre-FT/post-FT, dense/bm25/hybrid)
-- Conclusion level: Strong
-- Risks/limits:
-  - Single-seed comparison only.
-  - Latency/cost across dense, bm25, hybrid is not in this map.
-- Next steps:
-  - Add significance tests and confidence bands.
-  - Add runtime and memory profiling for each retrieval mode.
-### Replacement module (PQE vs multistep baseline)
-- Conclusion level: Moderate
-- Risks/limits:
-  - No wall-clock comparison between multistep and PQE in this artifact.
-  - Effect size is moderate; more stability testing is needed.
-- Next steps:
-  - Report runtime/cost for m05/m06 vs m11/m12.
-  - Audit multistep gate behavior with trace-level error buckets.
-### Calculator gate / allow_task_types / fallback
-- Conclusion level: Negative
-- Risks/limits:
-  - Task detector still yields many non-actionable cases.
-  - Gate thresholds are not tuned on a coverage/EM Pareto frontier.
-- Next steps:
-  - Refine task classification before calculator invocation.
-  - Tune gate and allow_task_types jointly with held-out numeric split.
-### Numeric extraction strategy (first vs result_tag)
-- Conclusion level: Weak
-- Risks/limits:
-  - Aggregate metrics unchanged despite query-level differences.
-  - Regex-based extraction remains brittle on noisy generated text.
-- Next steps:
-  - Add structured numeric output tags from calculator.
-  - Evaluate hybrid extraction with unit/year constraints.
-### Subset protocol (complex/abbrev/numeric, subsets_v2)
-- Conclusion level: Strong
-- Risks/limits:
-  - No explicit old-vs-v2 replay in the same run bundle.
-  - Regex heuristics may miss edge linguistic patterns.
-- Next steps:
-  - Version and diff subset rules in CI.
-  - Add sampled manual QA over subset assignments.
+## Evidence Sentences
+
+- **Retriever FT**: Pre-FT dense retrieval under-recovers evidence on full, complex, and abbrev queries. Contrast: seal_mvp01_preft_dense_singlestep vs seal_mvp02_dense_singlestep. Key metrics: full_r10 0.3246 -> 0.3789 (+0.0543); full_mrr10 0.2030 -> 0.2554 (+0.0524); complex_r10 0.3457 -> 0.3951 (+0.0494); abbrev_r10 0.3174 -> 0.3713 (+0.0539). Conclusion: Strong because Post-FT dense retriever gives clear cross-subset gains and remains the sealed retrieval foundation.
+- **Retrieval Mode Contrast**: The chain needs a sealed mode choice between dense, bm25, and hybrid. Contrast: seal_mvp02_dense_singlestep vs seal_mvp03_bm25_singlestep vs seal_mvp04_hybrid_singlestep. Key metrics: dense vs bm25 full_r10 advantage +0.1543; dense vs hybrid full_r10 advantage +0.0298; dense full_mrr10=0.2554, bm25=0.1266, hybrid=0.2092. Conclusion: Strong because Dense is the only stable sealed mode; bm25 loses heavily and hybrid still trails dense.
+- **Multistep Baseline**: It aims to recover missing evidence through extra steps, but the chain shows no measurable retrieval lift. Contrast: seal_mvp02_dense_singlestep vs seal_mvp05_dense_multistep, plus gate-open and gate-disabled ablations. Key metrics: m02 -> m05 full_r10 0.3789 -> 0.3789 (+0.0000); full_mrr10 0.2554 -> 0.2556 (+0.0002); local stop_reasons m05={'MAX_STEPS': 45, 'GATE_BLOCKED': 525}, m09={'NO_GAP': 570}, m10={'NO_GAP': 570}. Conclusion: Negative because Metrics stay flat and logs show the branch is mostly blocked by the gap gate or exits with NO_GAP.
+- **PQE Replacement For Multistep**: After multistep stalls, the chain still needs year-aware or abbreviation-aware expansion without iterative retrieval. Contrast: seal_mvp02_dense_singlestep vs seal_mvp11_dense_pqe, with seal_mvp12_dense_pqe_abbrev_only isolating PRF-year. Key metrics: m02 -> m18 full_r10 0.3789 -> 0.3842 (+0.0053); complex_r10 0.3951 -> 0.4074 (+0.0123); abbrev_r10 0.3713 -> 0.3752 (+0.0039); local qexpand_stats m18 expanded=483 prf_year=483 abbrev=11; m19 expanded=11 prf_year=0 abbrev=11. Conclusion: Moderate because PQE gives small but consistent retrieval gains, strongest on the complex subset, and the main marginal lift comes from PRF-year expansion.
+- **Calculator Standalone**: The numeric chain needs arithmetic support, but current calculator routing has high fallback and very weak calc-used accuracy. Contrast: seal_mvp07_dense_calc_empty_allow vs seal_mvp08_dense_calc_allow_yoy_diff, with m13/m15 as gate and task-space ablations. Key metrics: m11 -> m12 num_cov 0.6180 -> 0.6695 (+0.0515); num_em 0.3964 -> 0.3197 (-0.0767); fallback_ratio m12=0.8596, m13=0.8000, m15=0.8053. Conclusion: Negative because Calculator variants trade coverage, EM, and fallback in unstable ways, and closure reports explicitly downgrade the module to diagnostic status.
+- **Combination C (Current Seal: PQE + Calculator)**: The intended goal is to turn retrieval-side gains into a closed numeric chain, but the current combination still fails closure. Contrast: current seal: m12 vs m20; supplemental local-only prototype: comboC baseline vs A-only vs B-only vs C-full. Key metrics: current seal m12 -> m20 num_cov 0.6695 -> 0.6867 (+0.0172); num_em 0.3197 -> 0.3079 (-0.0118); num_rel 296.5772 -> 288.1516 (-8.4256); local comboC baseline -> C-full dev_numeric em 0.3079 -> 0.1329, cov 0.6867 -> 0.7554. Conclusion: Weak because The current seal combination proves interaction, not closure: coverage rises, EM falls, and the local comboC prototype is also net-negative.
+- **Subset Semantics (complex / abbrev / numeric)**: Without a stable subset contract, gains on complex, abbrev, and numeric slices cannot be interpreted consistently. Contrast: documented subsets_v2 contract vs current resolved seal paths in m18/m20. Key metrics: subsets_v2 counts complex=243, abbrev=501, numeric=466, two_years=49; current seal configs still resolve to data/subsets/dev_*. Conclusion: Moderate because The repaired subset contract exists and is quantified, but the current seal run still resolves to legacy subset paths, so semantics are documented more strongly than they are enforced.
 
 ## End-to-End Narrative
-The chain starts from query preprocessing and retrieval selection: post-FT dense is the base, then PQE toggles abbreviation/year expansion before ranking. The retrieval table rows map one-to-one to run outputs, and PQE shows moderate gains over abbrev-only and multistep baselines on complex and abbrev subsets.
-For numeric tasks, calculator gate/allow_task_types controls whether to trust computed results or fallback text. Current gate settings improve coverage but reduce EM, while extraction strategy is now auditable via explicit fields. subsets_v2 protocol pins complex/abbrev/numeric paths in the seal matrix so evaluation scope remains reproducible.
 
-## Traceability Appendix
-| table | line | label | run_id | summary | exists |
-| --- | --- | --- | --- | --- | --- |
-| MAIN | 3 | seal_mvp01_preft_dense_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01/summary.json` | yes |
-| MAIN | 4 | seal_mvp02_dense_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02/summary.json` | yes |
-| MAIN | 5 | seal_mvp03_bm25_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03/summary.json` | yes |
-| MAIN | 6 | seal_mvp04_hybrid_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04/summary.json` | yes |
-| MAIN | 7 | seal_mvp05_dense_multistep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05/summary.json` | yes |
-| MAIN | 8 | seal_mvp06_dense_multistep_t1 | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06/summary.json` | yes |
-| MAIN | 9 | seal_mvp05b_dense_multistep_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m01` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01/summary.json` | yes |
-| MAIN | 10 | seal_mvp06b_dense_multistep_t1_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m02` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02/summary.json` | yes |
-| MAIN | 11 | seal_mvp05c_dense_multistep_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m01` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01/summary.json` | yes |
-| MAIN | 12 | seal_mvp06c_dense_multistep_t1_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m02` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m02/summary.json` | yes |
-| MAIN | 13 | seal_mvp07_dense_calc_empty_allow | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07/summary.json` | yes |
-| MAIN | 14 | seal_mvp08_dense_calc_allow_yoy_diff | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08/summary.json` | yes |
-| MAIN | 15 | seal_mvp08b_dense_calc_gate_off | `20260217_174322_d71045/runs/20260217_174322_d71045_m01` | `outputs/20260217_174322_d71045/runs/20260217_174322_d71045_m01/summary.json` | yes |
-| MAIN | 16 | seal_mvp08c_dense_calc_minconf_02 | `20260218_012802_326769/runs/20260218_012802_326769_m01` | `outputs/20260218_012802_326769/runs/20260218_012802_326769_m01/summary.json` | yes |
-| MAIN | 17 | seal_mvp08d_dense_calc_expand_tasks | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m03` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03/summary.json` | yes |
-| MAIN | 18 | seal_mvp09_dense_multistep_calc | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09/summary.json` | yes |
-| MAIN | 19 | seal_mvp10_dense_multistep_t1_calc | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10/summary.json` | yes |
-| MAIN | 20 | m11_pqe | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m02` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m02/summary.json` | yes |
-| MAIN | 21 | m12_pqe_abbrev_only | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m03` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m03/summary.json` | yes |
-| MAIN | 22 | m13_pqe_calc | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m04` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json` | yes |
-| NUM | 3 | seal_mvp01_preft_dense_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01/summary.json` | yes |
-| NUM | 4 | seal_mvp02_dense_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02/summary.json` | yes |
-| NUM | 5 | seal_mvp03_bm25_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03/summary.json` | yes |
-| NUM | 6 | seal_mvp04_hybrid_singlestep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04/summary.json` | yes |
-| NUM | 7 | seal_mvp05_dense_multistep | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05/summary.json` | yes |
-| NUM | 8 | seal_mvp06_dense_multistep_t1 | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06/summary.json` | yes |
-| NUM | 9 | seal_mvp05b_dense_multistep_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m01` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01/summary.json` | yes |
-| NUM | 10 | seal_mvp06b_dense_multistep_t1_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m02` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02/summary.json` | yes |
-| NUM | 11 | seal_mvp05c_dense_multistep_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m01` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01/summary.json` | yes |
-| NUM | 12 | seal_mvp06c_dense_multistep_t1_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m02` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m02/summary.json` | yes |
-| NUM | 13 | seal_mvp07_dense_calc_empty_allow | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07/summary.json` | yes |
-| NUM | 14 | seal_mvp08_dense_calc_allow_yoy_diff | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08/summary.json` | yes |
-| NUM | 15 | seal_mvp08b_dense_calc_gate_off | `20260217_174322_d71045/runs/20260217_174322_d71045_m01` | `outputs/20260217_174322_d71045/runs/20260217_174322_d71045_m01/summary.json` | yes |
-| NUM | 16 | seal_mvp08c_dense_calc_minconf_02 | `20260218_012802_326769/runs/20260218_012802_326769_m01` | `outputs/20260218_012802_326769/runs/20260218_012802_326769_m01/summary.json` | yes |
-| NUM | 17 | seal_mvp08d_dense_calc_expand_tasks | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m03` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03/summary.json` | yes |
-| NUM | 18 | seal_mvp09_dense_multistep_calc | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09/summary.json` | yes |
-| NUM | 19 | seal_mvp10_dense_multistep_t1_calc | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10/summary.json` | yes |
-| NUM | 20 | m11_pqe | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m02` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m02/summary.json` | yes |
-| NUM | 21 | m12_pqe_abbrev_only | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m03` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m03/summary.json` | yes |
-| NUM | 22 | m13_pqe_calc | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m04` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json` | yes |
-| ABL | 3 | seal_mvp06_dense_multistep_t1 | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06/summary.json` | yes |
-| ABL | 4 | seal_mvp05b_dense_multistep_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m01` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m01/summary.json` | yes |
-| ABL | 5 | seal_mvp06b_dense_multistep_t1_gate_open | `20260218_023916_906096/runs/20260218_023916_906096_m02` | `outputs/20260218_023916_906096/runs/20260218_023916_906096_m02/summary.json` | yes |
-| ABL | 6 | seal_mvp05c_dense_multistep_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m01` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m01/summary.json` | yes |
-| ABL | 7 | seal_mvp06c_dense_multistep_t1_gate_disabled | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m02` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m02/summary.json` | yes |
-| ABL | 8 | seal_mvp07_dense_calc_empty_allow | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07/summary.json` | yes |
-| ABL | 9 | seal_mvp08b_dense_calc_gate_off | `20260217_174322_d71045/runs/20260217_174322_d71045_m01` | `outputs/20260217_174322_d71045/runs/20260217_174322_d71045_m01/summary.json` | yes |
-| ABL | 10 | seal_mvp08c_dense_calc_minconf_02 | `20260218_012802_326769/runs/20260218_012802_326769_m01` | `outputs/20260218_012802_326769/runs/20260218_012802_326769_m01/summary.json` | yes |
-| ABL | 11 | seal_mvp08d_dense_calc_expand_tasks | `20260218_032001_2056e7/runs/20260218_032001_2056e7_m03` | `outputs/20260218_032001_2056e7/runs/20260218_032001_2056e7_m03/summary.json` | yes |
-| ABL | 12 | seal_mvp10_dense_multistep_t1_calc | `20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10` | `outputs/20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10/summary.json` | yes |
-| ABL | 13 | m12_pqe_abbrev_only | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m03` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m03/summary.json` | yes |
-| ABL | 14 | m13_pqe_calc | `20260218_160058_ee7290/runs/20260218_160058_ee7290_m04` | `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json` | yes |
+The sealed chain now reads as follows. A query first enters the dense FT retriever, whose post-FT gains establish the retrieval foundation. Dense mode remains the only stable mode under the seal matrix. The earlier multistep branch no longer contributes measurable lift, so PQE replaces it as the retrieval-side improvement. PQE works mainly through year-aware expansion, which helps the complex subset the most and gives a smaller lift on abbrev-heavy questions.
+
+After retrieval, the numeric answer path remains the weak link. Calculator variants can raise coverage, but they do not convert that extra reach into stable EM gains, so the module remains diagnostic rather than sealed. The current deployed combination `PQE + calculator` therefore shows interaction without closure: retrieval gets better, numeric coverage rises, but the final numeric EM still does not clear a net-positive closure story. Subset semantics are documented in `subsets_v2`, yet the current seal resolved configs still point to legacy subset files, which is a reproducibility risk rather than a headline result.
+
+## Limitations
+
+- The explicit comboC A/B/C router evidence is local-only and supplemental; it is not part of the current sealed experiment list.
+- `docs/SEAL_CHECK_step6_final_gateclear.md` still uses some older short aliases, so this map resolves evidence by table row and run_id rather than alias text alone.
+- `subsets_v2` is documented, but the current local seal run still resolves to `data/subsets/*`.
