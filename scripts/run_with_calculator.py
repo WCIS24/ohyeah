@@ -25,6 +25,8 @@ from calculator.compute import (  # noqa: E402
     select_group,
 )
 from calculator.extract import Fact, extract_facts_from_text  # noqa: E402
+from calculator.fact_filter import filter_facts  # noqa: E402
+from calculator.value_task import predict_value_for_query  # noqa: E402
 from config.schema import get_path, resolve_config, validate_config, validate_paths  # noqa: E402
 from config.schema import write_resolved_config  # noqa: E402
 from finder_rag.config import load_config, save_config  # noqa: E402
@@ -387,6 +389,54 @@ def build_skip_result(
         reason=f"skipped:{reason}",
     )
     _attach_parser_fields(trace, parsed)
+    return result, trace
+
+
+def _fact_to_input_dict(fact: Fact) -> Dict[str, Any]:
+    return {
+        "chunk_id": fact.chunk_id,
+        "metric": fact.metric,
+        "entity": fact.entity,
+        "year": fact.year,
+        "period": fact.period,
+        "value": fact.value,
+        "unit": fact.unit,
+        "raw_span": fact.raw_span,
+        "confidence": fact.confidence,
+        "inferred_year": fact.inferred_year,
+    }
+
+
+def build_value_result(
+    *,
+    qid: str,
+    value: float,
+    unit: Optional[str],
+    confidence: float,
+    reason: str,
+    chosen_fact: Optional[Fact],
+    parsed: Any,
+) -> Tuple[CalcResult, CalcTrace]:
+    inputs = [_fact_to_input_dict(chosen_fact)] if chosen_fact is not None else []
+    result = CalcResult(
+        qid=qid,
+        task_type="lookup",
+        inputs=inputs,
+        result_value=float(value),
+        result_unit=unit,
+        explanation=f"combo_value:{reason}",
+        confidence=max(0.0, min(1.0, float(confidence))),
+        status="ok",
+    )
+    trace = CalcTrace(
+        qid=qid,
+        task_type="lookup",
+        selected_key=None,
+        candidates=len(inputs),
+        reason=f"combo_value:{reason}",
+    )
+    _attach_parser_fields(trace, parsed)
+    trace.selector_mode = "combo_value"
     return result, trace
 
 
@@ -845,6 +895,26 @@ def main() -> int:
         if max_chunks is not None and max_chunks <= 0:
             max_chunks = None
 
+    fact_filter_cfg = get_path(resolved, "calculator.fact_filter", {}) or {}
+    fact_filter_enabled = bool(fact_filter_cfg.get("enabled", False))
+    fact_filter_apply_cfg = dict(fact_filter_cfg)
+    fact_filter_apply_cfg.pop("enabled", None)
+
+    combo_cfg = get_path(resolved, "calculator.combo", {}) or {}
+    combo_enabled = bool(combo_cfg.get("enabled", False))
+    combo_use_b = bool(combo_cfg.get("use_b", True))
+
+    value_cfg = get_path(resolved, "calculator.value", {}) or {}
+    value_enabled = bool(value_cfg.get("enabled", False))
+    value_predict_cfg = dict(value_cfg)
+    value_predict_cfg.pop("enabled", None)
+    value_threshold = float(
+        combo_cfg.get(
+            "tau_a",
+            value_cfg.get("tau_a", value_cfg.get("min_confidence", 0.0)),
+        )
+    )
+
     logger.info(
         "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s",
         mode,
@@ -874,6 +944,14 @@ def main() -> int:
         selective_post_gate_enabled,
     )
     logger.info("calculator_max_chunks_for_facts=%s", max_chunks)
+    logger.info(
+        "combo enabled=%s use_b=%s value_enabled=%s tau_a=%.3f fact_filter_enabled=%s",
+        combo_enabled,
+        combo_use_b,
+        value_enabled,
+        value_threshold,
+        fact_filter_enabled,
+    )
 
     retrieval_results_path = os.path.join(run_dir, "retrieval_results.jsonl")
     facts_path = os.path.join(run_dir, "facts.jsonl")
@@ -881,6 +959,7 @@ def main() -> int:
     traces_path = os.path.join(run_dir, "calc_traces.jsonl")
     predictions_path = os.path.join(run_dir, "predictions_calc.jsonl")
     calc_used_records_path = os.path.join(run_dir, "calc_used_records.jsonl")
+    calc_audit_path = os.path.join(run_dir, "calc_audit.json")
 
     extract_total = 0
     inferred_year = 0
@@ -907,6 +986,14 @@ def main() -> int:
     selective_skip_detail_counts: Counter[str] = Counter()
     selective_needs_calc_count = 0
     selective_calculator_used_count = 0
+    used_module_counts: Counter[str] = Counter()
+    route_reason_counts: Counter[str] = Counter()
+    fallback_mode_counts: Counter[str] = Counter()
+    value_status_counts: Counter[str] = Counter()
+    value_reason_counts: Counter[str] = Counter()
+    value_reject_reason_counts: Counter[str] = Counter()
+    fact_filter_input_total = 0
+    fact_filter_output_total = 0
 
     with open(retrieval_results_path, "w", encoding="utf-8") as retr_f, \
         open(facts_path, "w", encoding="utf-8") as facts_f, \
@@ -945,8 +1032,12 @@ def main() -> int:
             calc_skip_detail: Optional[str] = None
             fallback_reason: Optional[str] = None
             calculator_used = False
+            fallback_mode = "none"
+            used_module = "B" if not combo_enabled else "NONE"
+            route_reason = "combo_disabled" if not combo_enabled else "combo_not_routed"
 
             qid_facts: List[Fact] = []
+            qid_facts_clean: List[Fact] = []
             selected_facts: List[Fact] = []
             selector_audit: Dict[str, Any] = {
                 "mode": fact_selector_mode,
@@ -956,6 +1047,9 @@ def main() -> int:
                 "selected_chunk_ids": [],
                 "selected_numbers": [],
             }
+            value_status = "not_attempted"
+            value_reason = "not_attempted"
+            value_confidence = 0.0
 
             parsed = parse_task_with_lookup(
                 query,
@@ -984,6 +1078,9 @@ def main() -> int:
                     calc_skip_detail = detail
                     selective_skip_stage_counts["pre_gate"] += 1
                     selective_skip_detail_counts[calc_skip_detail] += 1
+                    if combo_enabled:
+                        used_module = "NONE"
+                        route_reason = "pre_gate_skip"
                     task_hint = task_hint or pre_gate_decision.get("task_type")
                     result, trace = build_skip_result(
                         qid=str(qid),
@@ -1011,10 +1108,20 @@ def main() -> int:
                         missing_unit += 1
                     facts_f.write(json.dumps(fact.__dict__, ensure_ascii=False) + "\n")
 
+                qid_facts_clean = list(qid_facts)
+                fact_filter_input_total += len(qid_facts)
+                if fact_filter_enabled:
+                    qid_facts_clean = filter_facts(
+                        query=query,
+                        facts=qid_facts,
+                        cfg=fact_filter_apply_cfg,
+                    )
+                fact_filter_output_total += len(qid_facts_clean)
+
                 task_hint = task_hint or parsed.task_type
                 selected_facts, selector_audit = select_facts(
                     query=query,
-                    facts=qid_facts,
+                    facts=qid_facts_clean,
                     chunks=chunks,
                     mode=fact_selector_mode,
                     scored_cfg=fact_selector_scored,
@@ -1037,6 +1144,9 @@ def main() -> int:
                         calc_skip_detail = evidence_detail
                         selective_skip_stage_counts["evidence_gate"] += 1
                         selective_skip_detail_counts[calc_skip_detail] += 1
+                        if combo_enabled:
+                            used_module = "NONE"
+                            route_reason = "evidence_gate_skip"
                         result, trace = build_skip_result(
                             qid=str(qid),
                             task_type=task_hint,
@@ -1045,6 +1155,103 @@ def main() -> int:
                         )
                     else:
                         facts_for_compute = evidence_facts
+
+                if result is None and combo_enabled:
+                    if value_enabled:
+                        (
+                            value_status,
+                            value_value,
+                            value_unit,
+                            value_confidence,
+                            value_reason,
+                        ) = predict_value_for_query(
+                            query=query,
+                            facts_clean=qid_facts_clean,
+                            cfg=value_predict_cfg,
+                        )
+                        value_status_counts[value_status] += 1
+                        value_reason_counts[value_reason] += 1
+                        if (
+                            value_status == "ok"
+                            and value_value is not None
+                            and value_confidence >= value_threshold
+                        ):
+                            chosen_fact = None
+                            for fact in qid_facts_clean:
+                                if abs(float(fact.value) - float(value_value)) <= 1e-9:
+                                    chosen_fact = fact
+                                    break
+                            if chosen_fact is None and qid_facts_clean:
+                                chosen_fact = sorted(
+                                    qid_facts_clean,
+                                    key=lambda f: (-float(f.confidence), str(f.chunk_id)),
+                                )[0]
+                            result, trace = build_value_result(
+                                qid=str(qid),
+                                value=float(value_value),
+                                unit=value_unit,
+                                confidence=float(value_confidence),
+                                reason=value_reason,
+                                chosen_fact=chosen_fact,
+                                parsed=parsed,
+                            )
+                            used_module = "A"
+                            route_reason = "value_ok"
+                            selected_facts = [chosen_fact] if chosen_fact is not None else []
+                            selector_audit = {
+                                "mode": "combo_value",
+                                "reason": "value_ok",
+                                "selected_fact_count": len(selected_facts),
+                                "selected_pair_count": 0,
+                                "selected_chunk_ids": [
+                                    str(chosen_fact.chunk_id)
+                                ]
+                                if chosen_fact is not None and chosen_fact.chunk_id
+                                else [],
+                                "selected_numbers": [float(value_value)],
+                            }
+                        else:
+                            reject_reason = (
+                                "a_conf_below_tau"
+                                if value_status == "ok" and value_confidence < value_threshold
+                                else str(value_status)
+                            )
+                            value_reject_reason_counts[reject_reason] += 1
+                            if combo_use_b:
+                                used_module = "B"
+                                route_reason = f"{reject_reason}_to_b"
+                            else:
+                                used_module = "NONE"
+                                route_reason = f"{reject_reason}_to_fallback"
+                                calc_skip_reason = "combo_route"
+                                calc_skip_detail = reject_reason
+                                result, trace = build_skip_result(
+                                    qid=str(qid),
+                                    task_type=task_hint,
+                                    reason=calc_skip_detail,
+                                    parsed=parsed,
+                                )
+                                selector_audit["reason"] = "combo_no_b"
+                    else:
+                        value_status = "disabled"
+                        value_reason = "value_disabled"
+                        value_status_counts[value_status] += 1
+                        value_reason_counts[value_reason] += 1
+                        if combo_use_b:
+                            used_module = "B"
+                            route_reason = "value_disabled_to_b"
+                        else:
+                            used_module = "NONE"
+                            route_reason = "value_disabled_to_fallback"
+                            calc_skip_reason = "combo_route"
+                            calc_skip_detail = "value_disabled"
+                            result, trace = build_skip_result(
+                                qid=str(qid),
+                                task_type=task_hint,
+                                reason=calc_skip_detail,
+                                parsed=parsed,
+                            )
+                            selector_audit["reason"] = "combo_no_b"
 
                 if result is None:
                     compute_policy = None
@@ -1064,15 +1271,18 @@ def main() -> int:
                         enable_lookup=enable_lookup,
                         policy=compute_policy,
                     )
+                    if combo_enabled and route_reason == "combo_not_routed":
+                        used_module = "B"
+                        route_reason = "combo_to_b"
 
                     if (
                         selector_soft_fallback
                         and fact_selector_mode == "scored_v1"
                         and result.status != "ok"
-                        and qid_facts
+                        and qid_facts_clean
                     ):
                         soft_fallback_attempts += 1
-                        legacy_facts, legacy_audit = select_legacy(qid_facts)
+                        legacy_facts, legacy_audit = select_legacy(qid_facts_clean)
                         fallback_policy = None
                         if selector_top_pairs > 1:
                             fallback_policy = {
@@ -1139,7 +1349,22 @@ def main() -> int:
             results_f.write(json.dumps(result.__dict__, ensure_ascii=False) + "\n")
             traces_f.write(json.dumps(trace.__dict__, ensure_ascii=False) + "\n")
 
-            if selective_enabled:
+            if combo_enabled and used_module == "A" and result.status == "ok":
+                calculator_used = True
+                if selective_enabled:
+                    selective_calculator_used_count += 1
+                used_chunks = [i.get("chunk_id") for i in result.inputs if i.get("chunk_id")]
+                if selective_enabled:
+                    calc_head = f"Result: {result.result_value} {result.result_unit or ''}".strip()
+                    pred_answer = f"{calc_head}. {baseline_answer}".strip()
+                else:
+                    unit = result.result_unit or ""
+                    pred_answer = f"Result: {result.result_value} {unit}. {result.explanation}"
+                fallback_reason = None
+                calc_skip_reason = None
+                calc_skip_detail = None
+                fallback_mode = "none"
+            elif selective_enabled:
                 if result.status == "ok":
                     if selective_post_gate_enabled:
                         post_input_cfg = dict(post_gate_cfg)
@@ -1162,6 +1387,7 @@ def main() -> int:
                         fallback_reason = None
                         calc_skip_reason = None
                         calc_skip_detail = None
+                        fallback_mode = "none"
                     else:
                         calc_skip_reason = "post_gate"
                         calc_skip_detail = post_detail
@@ -1171,6 +1397,7 @@ def main() -> int:
                         pred_answer = baseline_answer
                         fallback_reason = calc_skip_detail
                         fallback_counts[fallback_reason] += 1
+                        fallback_mode = "template"
                 else:
                     if calc_skip_reason is None:
                         calc_skip_reason = "compute_fail"
@@ -1181,6 +1408,7 @@ def main() -> int:
                     pred_answer = baseline_answer
                     fallback_reason = calc_skip_detail
                     fallback_counts[fallback_reason] += 1
+                    fallback_mode = "template"
             else:
                 gate_cfg = get_path(resolved, "calculator.gate", {}) or {}
                 allow_tasks = gate_cfg.get("allow_task_types", ["yoy", "diff"])
@@ -1214,11 +1442,13 @@ def main() -> int:
                     unit = result.result_unit or ""
                     pred_answer = f"Result: {result.result_value} {unit}. {result.explanation}"
                     fallback_reason = None
+                    fallback_mode = "none"
                 else:
                     used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
                     pred_answer = placeholder_generate(query, chunks)
                     fallback_reason = gate_reason or result.status
                     fallback_counts[fallback_reason] += 1
+                    fallback_mode = "template"
 
             preds_f.write(
                 json.dumps(
@@ -1234,6 +1464,9 @@ def main() -> int:
                         "needs_calc": bool(pre_gate_decision.get("needs_calc"))
                         if selective_enabled
                         else None,
+                        "used_module": used_module,
+                        "route_reason": route_reason,
+                        "fallback_mode": fallback_mode,
                     },
                     ensure_ascii=False,
                 )
@@ -1293,11 +1526,24 @@ def main() -> int:
                         if selective_enabled
                         else None,
                         "pre_gate_audit": pre_gate_decision if selective_enabled else {},
+                        "used_module": used_module,
+                        "route_reason": route_reason,
+                        "fallback_mode": fallback_mode,
+                        "value_route": {
+                            "status": value_status,
+                            "reason": value_reason,
+                            "confidence": value_confidence,
+                            "threshold": value_threshold,
+                        },
                     },
                     ensure_ascii=False,
                 )
                 + "\n"
             )
+
+            used_module_counts[used_module] += 1
+            route_reason_counts[route_reason] += 1
+            fallback_mode_counts[fallback_mode] += 1
 
     total = len(records)
     extract_stats = {
@@ -1312,6 +1558,35 @@ def main() -> int:
         "missing_unit_ratio": missing_unit / extract_total if extract_total else 0.0,
     }
     fallback_total = sum(fallback_counts.values())
+    fact_filter_removed = fact_filter_input_total - fact_filter_output_total
+    calc_audit = {
+        "total_queries": total,
+        "combo": {
+            "enabled": combo_enabled,
+            "use_b": combo_use_b,
+            "used_module_counts": dict(used_module_counts),
+            "route_reason_counts": dict(route_reason_counts),
+            "fallback_mode_counts": dict(fallback_mode_counts),
+        },
+        "value_module": {
+            "enabled": value_enabled,
+            "threshold": value_threshold,
+            "status_counts": dict(value_status_counts),
+            "reason_counts": dict(value_reason_counts),
+            "reject_reason_counts": dict(value_reject_reason_counts),
+        },
+        "fact_filter": {
+            "enabled": fact_filter_enabled,
+            "input_total_facts": fact_filter_input_total,
+            "output_total_facts": fact_filter_output_total,
+            "removed_total_facts": fact_filter_removed,
+            "kept_ratio": (
+                fact_filter_output_total / fact_filter_input_total
+                if fact_filter_input_total
+                else 0.0
+            ),
+        },
+    }
     calc_stats = {
         "total_queries": total,
         "ok_ratio": status_counts.get("ok", 0) / total if total else 0.0,
@@ -1361,16 +1636,20 @@ def main() -> int:
         "results_path": results_path,
         "traces_path": traces_path,
         "calc_used_records_path": calc_used_records_path,
+        "calc_audit_path": calc_audit_path,
     }
     with open(os.path.join(run_dir, "extract_stats.json"), "w", encoding="utf-8") as f:
         json.dump(extract_stats, f, indent=2)
     with open(os.path.join(run_dir, "calc_stats.json"), "w", encoding="utf-8") as f:
         json.dump(calc_stats, f, indent=2)
+    with open(calc_audit_path, "w", encoding="utf-8") as f:
+        json.dump(calc_audit, f, indent=2)
     with open(os.path.join(run_dir, "git_commit.txt"), "w", encoding="utf-8") as f:
         f.write(f"{git_hash}\n")
     save_config(resolved, os.path.join(run_dir, "config.yaml"))
     logger.info("extract_stats=%s", extract_stats)
     logger.info("calc_stats=%s", calc_stats)
+    logger.info("calc_audit=%s", calc_audit)
     logger.info("predictions_path=%s", predictions_path)
     return 0
 
