@@ -83,3 +83,18 @@ experiments:
   - label: calc_selective_s3_strict_plus_lookup
     run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m04
     group: ablation
+  - label: comboC_s0_baseline_b_legacy
+    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m01
+    group: ablation
+  - label: comboC_s1_a_only_template
+    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m02
+    group: ablation
+  - label: comboC_s2_b_only_combo
+    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m03
+    group: ablation
+  - label: comboC_s3_c_full_template
+    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m04
+    group: ablation
+  - label: comboC_s4_c_filter_tight
+    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m07
+    group: ablation
