@@ -1,60 +1,101 @@
-# SEAL Final Check
+ï»¿# SEAL Final Check
 
-## ½áÂÛ
-- **Ready**
-- ¶³½á±êÊ¶£º`smoke_run_id=seal_final_smoke`£¬`matrix_id=20260218_160058_ee7290`¡£
-- ÅĞ¶¨¿ìÕÕ£º`outputs/seal_checks/seal_final_snapshot.json:3`¡¢`outputs/seal_checks/seal_final_snapshot.json:6`¡¢`outputs/seal_checks/seal_final_snapshot.json:7`¡£
+Generated at: 2026-02-28 18:33:41 Asia/Shanghai
+Decision: READY
+Machine-readable snapshot: `outputs/seal_checks/seal_final_snapshot.json`
 
-## »·¾³ÓëÃüÁî
-- Git Ìá½»£º`7b4f157`£¨`outputs/seal_checks/seal_final_snapshot.json:4`£©¡£
-- Python£º`3.12.7`£¨`outputs/seal_final_smoke/env_versions.json:5`£©¡£
-- ÒÀÀµ¿ìÕÕ£º`outputs/seal_final_smoke/env_versions.json:2`¡¢`outputs/seal_final_smoke/env_versions.json:10`¡£
-- Ö´ĞĞÃüÁî£¨°´ÒªÇóË³Ğò£©£º
-  1. `python scripts/smoke.py --config configs/smoke.yaml --run-id seal_final_smoke`
-  2. `python scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix configs/tmp_matrix_seal_pqe_only.yaml`
-  3. `python scripts/make_tables.py --experiments configs/step6_experiments_seal.yaml`
-  4. `python scripts/plot_all.py --config scripts/plot_config.yaml`
-- ÃüÁîÖ¤¾İ£º`outputs/seal_checks/seal_final_snapshot.json:11`¡¢`outputs/seal_checks/seal_final_snapshot.json:15`¡¢`outputs/seal_checks/seal_final_snapshot.json:19`¡¢`outputs/seal_checks/seal_final_snapshot.json:23`¡£
+## 1. Seal Summary
 
-## ²úÎïÇåµ¥
-- ¾ØÕóÔªÊı¾İ£º`outputs/20260218_160058_ee7290/matrix.json`¡¢`outputs/20260218_160058_ee7290/experiments_resolved.yaml`¡£
-- ÔËĞĞÕªÒª£º
-  - `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m01/summary.json`
-  - `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m02/summary.json`
-  - `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m03/summary.json`
-  - `outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json`
-- ·â×°½Å±¾£º`scripts/seal_reproduce.sh:1`¡¢`scripts/seal_reproduce.sh:13`¡¢`scripts/seal_reproduce.sh:25`¡£
-- ¶³½á¿ìÕÕ£º`outputs/seal_checks/seal_final_snapshot.json:1`¡£
+| Item | Value |
+| --- | --- |
+| smoke_run_id | `seal_final_smoke` |
+| matrix_id | `20260228_055920_06d6bb` |
+| plot_run_id | `20260228_103340_cb1bb1` |
+| commit_now | `427933035d8144eca44ac919fd0a9c2692469f6e` |
+| matrix_status | `20/20 ok` |
+| plot_has_data_false_count | `0` |
+| tables_updated | `Yes` |
+| plots_updated | `Yes` |
 
-## ±íÍ¼¶ÔÆë
-- PQE Ó³Éäµ½×îĞÂ¾ØÕó run£º`configs/step6_experiments_seal.yaml:54`¡¢`configs/step6_experiments_seal.yaml:57`¡¢`configs/step6_experiments_seal.yaml:60`¡£
-- Ö÷±íÒÑÏû·Ñ×îĞÂ PQE£º`docs/TABLE_MAIN.md:20`¡¢`docs/TABLE_MAIN.md:21`¡¢`docs/TABLE_MAIN.md:22`¡£
-- ÊıÖµ±íÒÑÏû·Ñ×îĞÂ PQE£º`docs/TABLE_NUMERIC.md:20`¡¢`docs/TABLE_NUMERIC.md:21`¡¢`docs/TABLE_NUMERIC.md:22`¡£
-- ÏûÈÚ±íº¬ PQE ÏûÈÚ±Û£º`docs/TABLE_ABLATION.md:13`¡¢`docs/TABLE_ABLATION.md:14`¡£
-- È«±í run_id µ½ `summary.json` ¿É×·Ëİ£º`outputs/seal_checks/seal_final_table_traceability.json:387`¡£
-- plot `has_data=False` ÊıÁ¿Îª 0£º`outputs/seal_checks/seal_final_snapshot.json:269`¡£
-- Í¼²úÎïÂäÅÌ£º`outputs/seal_checks/seal_final_plot_all_cmd.log:8`¡¢`thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf`¡£
+## 2. Acceptance Items
 
-## ÏûÈÚ±Õ»·
-- multistep baseline ÔÚ¹Ù·½±í£º`docs/TABLE_MAIN.md:7`¡¢`docs/TABLE_MAIN.md:8`¡¢`docs/TABLE_NUMERIC.md:7`¡¢`docs/TABLE_NUMERIC.md:8`¡£
-- calculator ÏµÁĞÔÚ¹Ù·½±í£º`docs/TABLE_MAIN.md:14`¡¢`docs/TABLE_MAIN.md:17`¡¢`docs/TABLE_NUMERIC.md:14`¡¢`docs/TABLE_NUMERIC.md:17`¡£
-- PQE Ö÷½á¹ûÔÚ¹Ù·½±í£º`docs/TABLE_MAIN.md:20`¡¢`docs/TABLE_MAIN.md:21`¡¢`docs/TABLE_MAIN.md:22`¡£
-- numeric ÆÀ²â²ßÂÔ¿ÉÉó¼Æ£¨`extract_strategy=first`£©£º`outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json:72`¡¢`outputs/20260218_160058_ee7290/runs/20260218_160058_ee7290_m04/summary.json:88`¡£
+| Check item | Result | Evidence path |
+| --- | --- | --- |
+| Smoke ran before experiments and passed | Pass | `outputs/seal_final_smoke/metrics.json`, `outputs/seal_final_smoke/logs.txt`, `outputs/seal_final_smoke/env_versions.json` |
+| Seal matrix metadata exists | Pass | `outputs/20260228_055920_06d6bb/matrix.json`, `outputs/20260228_055920_06d6bb/experiments_resolved.yaml` |
+| All 20 seal runs reached `status=ok` | Pass | `outputs/20260228_055920_06d6bb/matrix.json`, `outputs/seal_checks/seal_final_snapshot.json` |
+| Seal experiments mapping points to this matrix | Pass | `configs/step6_experiments_seal.yaml`, `outputs/seal_checks/seal_final_snapshot.json` |
+| Main / numeric / ablation tables were regenerated from the seal experiments list | Pass | `docs/TABLE_MAIN.md`, `docs/TABLE_NUMERIC.md`, `docs/TABLE_ABLATION.md` |
+| Plot outputs were regenerated from the seal plot config | Pass | `outputs/20260228_103340_cb1bb1/logs.txt`, `thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf`, `thesis/figures_seal/ThemeA/tables/main_results.csv` |
+| Enabled plots have `has_data=False` count = 0 | Pass | `outputs/20260228_103340_cb1bb1/logs.txt`, `outputs/seal_checks/seal_final_snapshot.json` |
+| Machine-readable seal snapshot was written | Pass | `outputs/seal_checks/seal_final_snapshot.json` |
 
-## ·çÏÕÓë»Ø¹ö
-- ·çÏÕ 1£¨·Ç×è¶Ï£©£º»æÍ¼ÑùÊ½ÎÄ¼şÎ´ÃüÖĞ warning£¨²»Ó°Ïì³öÍ¼£©`outputs/seal_checks/seal_final_plot_all_cmd.log:6`¡£
-- ·çÏÕ 2£¨ÒÑÊÕÁ²£©£º`configs/` ÖĞ `latest` ÈíÂ·¾¶ÒÑÇåÁã£¬É¨Ãè½á¹û `NO_MATCH`£¨`outputs/seal_checks/seal_final_config_latest_scan.log:1`£©¡£
-- ·çÏÕ 3£¨±ä¸üÃæ£©£º±¾´Î¶³½á¸üĞÂÁËÂ·¾¶Ëø¶¨Óë±íÍ¼Ö¸Ïò£¨`configs/step6_matrix.yaml:11`¡¢`configs/search_space_calc.yaml:2`¡¢`configs/search_space_multistep.yaml:2`¡¢`configs/step6_postft_baseline.yaml:21`£©¡£
-- »Ø¹öµã£º»Ø¹öÒÔÉÏ 5 ¸öÅäÖÃÎÄ¼ş + `configs/step6_experiments_seal.yaml` + `docs/TABLE_*.md` + `scripts/seal_reproduce.sh` ¼´¿É»Ö¸´¶³½áÇ°×´Ì¬¡£
+## 3. Matrix Status by Run
 
-## Checklist£¨ÖğÌõ¿ÉÑéÖ¤£©
-- [x] Ò»¼üÁ´Â·ËÄÌõÃüÁî¾ùÖ´ĞĞ²¢²úÉúÈÕÖ¾£º`outputs/seal_checks/seal_final_snapshot.json:10`¡¢`outputs/seal_checks/seal_final_snapshot.json:14`¡¢`outputs/seal_checks/seal_final_snapshot.json:18`¡¢`outputs/seal_checks/seal_final_snapshot.json:22`¡£
-- [x] `matrix.json` / `experiments_resolved.yaml` / run `summary.json` ÆëÈ«£º`outputs/seal_checks/seal_final_snapshot.json:28`¡¢`outputs/seal_checks/seal_final_snapshot.json:29`¡¢`outputs/seal_checks/seal_final_snapshot.json:37`¡£
-- [x] ÈÕÖ¾°üº¬ seed Óë git_hash£º`outputs/seal_checks/seal_final_smoke_cmd.log:3`¡¢`outputs/seal_checks/seal_final_matrix_cmd.log:4`¡¢`outputs/seal_checks/seal_final_matrix_cmd.log:7`¡£
-- [x] `configs` ²»ÔÙÒıÓÃ `latest`£º`outputs/seal_checks/seal_final_config_latest_scan.log:1`¡£
-- [x] Ö÷±í/ÊıÖµ±í/ÏûÈÚ±í°üº¬ PQE Óë¹Ø¼ü baseline/calculator ĞĞ£º`docs/TABLE_MAIN.md:20`¡¢`docs/TABLE_NUMERIC.md:20`¡¢`docs/TABLE_ABLATION.md:13`¡¢`docs/TABLE_MAIN.md:7`¡¢`docs/TABLE_MAIN.md:14`¡£
-- [x] ±í¸ñĞĞ¿É×·Ëİµ½ `summary.json`£º`outputs/seal_checks/seal_final_table_traceability.json:387`¡£
-- [x] »æÍ¼ `has_data=False` ÊıÁ¿Îª 0£¬Í¼Â·¾¶¿É¶¨Î»£º`outputs/seal_checks/seal_final_snapshot.json:269`¡¢`outputs/seal_checks/seal_final_plot_all_cmd.log:8`¡£
-- [x] matrix ÔªÊı¾İ±Õ»·Óë×´Ì¬Õı³££º`outputs/seal_checks/seal_final_snapshot.json:30`¡¢`outputs/seal_checks/seal_final_snapshot.json:288`¡£
-- [x] numeric ²ßÂÔ¿ÉÉó¼Æ×Ö¶Î´æÔÚ£º`outputs/seal_checks/seal_final_snapshot.json:263`¡£
-- [x] ÎŞ¡°¾²Ä¬Ê§Ğ§¡±ÅäÖÃ¼ü½áÂÛ£¨ÒÔ×îÖÕ¼ì²éÏîÍ¨¹ıÎª×¼£©£º`outputs/seal_checks/seal_final_snapshot.json:284`¡¢`outputs/seal_checks/seal_final_snapshot.json:295`¡£
+`status=ok` count by run_id is `1` for every run below.
+
+| run_id | label | ok_count | summary |
+| --- | --- | --- | --- |
+| `20260228_055920_06d6bb_m01` | `seal_mvp01_preft_dense_singlestep` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m01/summary.json` |
+| `20260228_055920_06d6bb_m02` | `seal_mvp02_dense_singlestep` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m02/summary.json` |
+| `20260228_055920_06d6bb_m03` | `seal_mvp03_bm25_singlestep` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m03/summary.json` |
+| `20260228_055920_06d6bb_m04` | `seal_mvp04_hybrid_singlestep` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m04/summary.json` |
+| `20260228_055920_06d6bb_m05` | `seal_mvp05_dense_multistep` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m05/summary.json` |
+| `20260228_055920_06d6bb_m06` | `seal_mvp06_dense_multistep_t1` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m06/summary.json` |
+| `20260228_055920_06d6bb_m07` | `seal_mvp05b_dense_multistep_gate_open` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m07/summary.json` |
+| `20260228_055920_06d6bb_m08` | `seal_mvp06b_dense_multistep_t1_gate_open` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m08/summary.json` |
+| `20260228_055920_06d6bb_m09` | `seal_mvp05c_dense_multistep_gate_disabled` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m09/summary.json` |
+| `20260228_055920_06d6bb_m10` | `seal_mvp06c_dense_multistep_t1_gate_disabled` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m10/summary.json` |
+| `20260228_055920_06d6bb_m11` | `seal_mvp07_dense_calc_empty_allow` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m11/summary.json` |
+| `20260228_055920_06d6bb_m12` | `seal_mvp08_dense_calc_allow_yoy_diff` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m12/summary.json` |
+| `20260228_055920_06d6bb_m13` | `seal_mvp08b_dense_calc_gate_off` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m13/summary.json` |
+| `20260228_055920_06d6bb_m14` | `seal_mvp08c_dense_calc_minconf_02` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m14/summary.json` |
+| `20260228_055920_06d6bb_m15` | `seal_mvp08d_dense_calc_expand_tasks` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m15/summary.json` |
+| `20260228_055920_06d6bb_m16` | `seal_mvp09_dense_multistep_calc` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m16/summary.json` |
+| `20260228_055920_06d6bb_m17` | `seal_mvp10_dense_multistep_t1_calc` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m17/summary.json` |
+| `20260228_055920_06d6bb_m18` | `seal_mvp11_dense_pqe` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m18/summary.json` |
+| `20260228_055920_06d6bb_m19` | `seal_mvp12_dense_pqe_abbrev_only` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m19/summary.json` |
+| `20260228_055920_06d6bb_m20` | `seal_mvp13_dense_pqe_calc` | `1` | `outputs/20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m20/summary.json` |
+
+## 4. Table and Plot Update Evidence
+
+Tables were updated.
+
+- Previous table timestamp observed before rerun: `2026-02-28 10:43:37`
+- New table timestamp after `make_tables`: `2026-02-28 18:33:39`
+- Evidence: `docs/TABLE_MAIN.md`, `docs/TABLE_NUMERIC.md`, `docs/TABLE_ABLATION.md`
+
+Plots were updated.
+
+- Previous active seal figure timestamp observed before rerun: `2026-02-28 11:12:44` / `11:12:45`
+- New plot timestamp after `plot_all`: `2026-02-28 18:33:40` / `18:33:41`
+- Evidence: `thesis/figures_seal/ThemeA/tables/main_results.csv`, `thesis/figures_seal/ThemeA/tables/main_results.tex`, `thesis/figures_seal/ThemeA/figures/ablation_breakdown.pdf`, `thesis/figures_seal/ThemeA/figures/ablation_breakdown.png`, `thesis/figures_seal/FIGURE_CATALOG.md`, `thesis/figures_seal/figures_auto.tex`
+
+Enabled plot data check.
+
+- `outputs/20260228_103340_cb1bb1/logs.txt` shows one enabled figure write: `ablation_breakdown.pdf has_data=True`
+- `outputs/seal_checks/seal_final_snapshot.json` records `plot_has_data_false_count = 0` and `plot_has_data_true_count = 1`
+
+## 5. Snapshot Payload
+
+`outputs/seal_checks/seal_final_snapshot.json` includes:
+
+- `commit`
+- `matrix_id`
+- `matrix_path`
+- `plot_run_id`
+- `plot_log`
+- `status_counts`
+- `run_ids`
+- per-run `label/run_id/status/summary/logs`
+- `tables`
+- `figures`
+- `plot_has_data_false_count`
+- canonical four-command list
+
+## 6. Notes
+
+1. `make_tables.py` has no run-scoped `outputs/<run_id>/logs.txt`, so table regeneration is evidenced by file timestamps/content plus the sealed experiments mapping.
+2. The exact `run_matrix_step6` command was started first and created `matrix_id=20260228_055920_06d6bb`. After the terminal wrapper timed out, the remaining runs were completed under the same matrix id and the same seal config set before final matrix metadata was rewritten. The local audit trail remains complete at `outputs/20260228_055920_06d6bb/**`.
+3. `plot_all.py` emitted `style_not_found` once, but no enabled figure had `has_data=False`.
+4. `thesis/figures_seal/ThemeA/figures/abbrev_breakdown.pdf` and `.png` are older disabled outputs and are not evidence for the current enabled seal plot set.

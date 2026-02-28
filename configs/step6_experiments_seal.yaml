@@ -1,100 +1,61 @@
 experiments:
   - label: seal_mvp01_preft_dense_singlestep
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m01
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m01
     group: main
   - label: seal_mvp02_dense_singlestep
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m02
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m02
     group: main
   - label: seal_mvp03_bm25_singlestep
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m03
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m03
     group: main
   - label: seal_mvp04_hybrid_singlestep
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m04
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m04
     group: main
   - label: seal_mvp05_dense_multistep
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m05
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m05
     group: main
   - label: seal_mvp06_dense_multistep_t1
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m06
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m06
     group: ablation
   - label: seal_mvp05b_dense_multistep_gate_open
-    run_id: 20260218_023916_906096/runs/20260218_023916_906096_m01
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m07
     group: ablation
   - label: seal_mvp06b_dense_multistep_t1_gate_open
-    run_id: 20260218_023916_906096/runs/20260218_023916_906096_m02
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m08
     group: ablation
   - label: seal_mvp05c_dense_multistep_gate_disabled
-    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m01
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m09
     group: ablation
   - label: seal_mvp06c_dense_multistep_t1_gate_disabled
-    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m02
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m10
     group: ablation
   - label: seal_mvp07_dense_calc_empty_allow
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m07
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m11
     group: ablation
   - label: seal_mvp08_dense_calc_allow_yoy_diff
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m08
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m12
     group: main
   - label: seal_mvp08b_dense_calc_gate_off
-    run_id: 20260217_174322_d71045/runs/20260217_174322_d71045_m01
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m13
     group: ablation
   - label: seal_mvp08c_dense_calc_minconf_02
-    run_id: 20260218_012802_326769/runs/20260218_012802_326769_m01
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m14
     group: ablation
   - label: seal_mvp08d_dense_calc_expand_tasks
-    run_id: 20260218_032001_2056e7/runs/20260218_032001_2056e7_m03
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m15
     group: ablation
   - label: seal_mvp09_dense_multistep_calc
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m09
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m16
     group: main
   - label: seal_mvp10_dense_multistep_t1_calc
-    run_id: 20260217_123645_68f6b9/runs/20260217_123645_68f6b9_m10
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m17
     group: ablation
-  - label: m11_pqe
-    run_id: 20260218_160058_ee7290/runs/20260218_160058_ee7290_m02
+  - label: seal_mvp11_dense_pqe
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m18
     group: main
-  - label: m12_pqe_abbrev_only
-    run_id: 20260218_160058_ee7290/runs/20260218_160058_ee7290_m03
+  - label: seal_mvp12_dense_pqe_abbrev_only
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m19
     group: ablation
-  - label: m13_pqe_calc
-    run_id: 20260218_160058_ee7290/runs/20260218_160058_ee7290_m04
-    group: ablation
-  - label: calc_closure_c0_baseline
-    run_id: 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m01
-    group: ablation
-  - label: calc_closure_c1_scored_hard
-    run_id: 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m02
-    group: ablation
-  - label: calc_closure_c2_scored_soft
-    run_id: 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m03
-    group: ablation
-  - label: calc_closure_c3_scored_soft_retry
-    run_id: 20260219_071245_dd1cc7/runs/20260219_071245_dd1cc7_m04
-    group: ablation
-  - label: calc_selective_s0_baseline
-    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m01
-    group: ablation
-  - label: calc_selective_s1_pre_gate_only
-    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m02
-    group: ablation
-  - label: calc_selective_s2_strict_gates
-    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m03
-    group: ablation
-  - label: calc_selective_s3_strict_plus_lookup
-    run_id: 20260219_104111_d805c6/runs/20260219_104111_d805c6_m04
-    group: ablation
-  - label: comboC_s0_baseline_b_legacy
-    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m01
-    group: ablation
-  - label: comboC_s1_a_only_template
-    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m02
-    group: ablation
-  - label: comboC_s2_b_only_combo
-    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m03
-    group: ablation
-  - label: comboC_s3_c_full_template
-    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m04
-    group: ablation
-  - label: comboC_s4_c_filter_tight
-    run_id: 20260228_012006_b44483/runs/20260228_012006_b44483_m07
+  - label: seal_mvp13_dense_pqe_calc
+    run_id: 20260228_055920_06d6bb/runs/20260228_055920_06d6bb_m20
     group: ablation

@@ -4,6 +4,7 @@ PYTHON ?= python
 .PHONY: mine_negs train_retriever eval_retriever_pre eval_retriever_post build_subsets run_multistep eval_multistep
 .PHONY: build_numeric_subset build_calc_needed_subset extract_facts run_calculator run_baseline_calc run_multistep_calc eval_numeric
 .PHONY: validate_config sweep_multistep sweep_calc_threshold run_matrix_step6 make_tables
+.PHONY: seal_smoke seal_matrix seal_tables seal_plots
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -72,6 +73,18 @@ run_matrix_step6:
 
 make_tables:
 	$(PYTHON) scripts/make_tables.py --experiments configs/step6_experiments.yaml
+
+seal_smoke:
+	$(PYTHON) scripts/smoke.py --config configs/smoke.yaml --run-id seal_final_smoke
+
+seal_matrix:
+	$(PYTHON) scripts/run_matrix_step6.py --base-config configs/step6_base.yaml --matrix configs/step6_matrix_seal.yaml
+
+seal_tables:
+	$(PYTHON) scripts/make_tables.py --experiments configs/step6_experiments_seal.yaml
+
+seal_plots:
+	$(PYTHON) scripts/plot_all.py --config scripts/plot_config.yaml
 
 FIGURES_CONFIG ?= scripts/plot_config.yaml
 FIGURE_THEME ?= ThemeA
