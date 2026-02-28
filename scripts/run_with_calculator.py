@@ -40,6 +40,7 @@ YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
 ENTITY_RE = re.compile(r"\b[A-Z]{2,6}\b")
 PERCENT_HINT_RE = re.compile(r"%|percent|percentage|\u767e\u5206", re.IGNORECASE)
 CURRENCY_HINT_RE = re.compile(r"\$|usd|us\$|eur|cny|rmb|hkd", re.IGNORECASE)
+NUMBER_RE = re.compile(r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?")
 
 TASK_KEYWORDS: Dict[str, List[str]] = {
     "yoy": [
@@ -73,6 +74,7 @@ TASK_KEYWORDS: Dict[str, List[str]] = {
 
 VALID_FACT_SELECTOR_MODES = {"legacy", "legacy_largest_group", "scored_v1"}
 VALID_TASK_PARSER_MODES = {"v1", "v2"}
+VALID_FALLBACK_MODES = {"template", "mask_numbers", "no_number"}
 PERCENT_UNITS = {"%", "percent", "percentage", "pct", "bp", "bps", "百分点"}
 METRIC_HINTS = [
     "revenue",
@@ -132,6 +134,14 @@ def baseline_answer_generate(chunks: List[Dict[str, Any]]) -> str:
     if not snippet:
         return "No evidence found."
     return f"Answer based on evidence: {snippet[:220]}"
+
+
+def render_fallback_answer(template_text: str, fallback_mode: str) -> str:
+    if fallback_mode == "mask_numbers":
+        return NUMBER_RE.sub("#", template_text or "")
+    if fallback_mode == "no_number":
+        return "Insufficient numeric evidence."
+    return template_text
 
 
 def _keyword_hits(query: str, keywords: List[str]) -> List[str]:
@@ -915,6 +925,15 @@ def main() -> int:
         )
     )
 
+    fallback_cfg = get_path(resolved, "calculator.fallback", {}) or {}
+    configured_fallback_mode = str(fallback_cfg.get("mode", "template")).lower().strip()
+    if configured_fallback_mode not in VALID_FALLBACK_MODES:
+        logger.warning(
+            "invalid calculator.fallback.mode=%s fallback=template",
+            configured_fallback_mode,
+        )
+        configured_fallback_mode = "template"
+
     logger.info(
         "retriever_mode=%s top_k=%d alpha=%.3f output_percent=%s",
         mode,
@@ -952,6 +971,7 @@ def main() -> int:
         value_threshold,
         fact_filter_enabled,
     )
+    logger.info("calculator_fallback_mode=%s", configured_fallback_mode)
 
     retrieval_results_path = os.path.join(run_dir, "retrieval_results.jsonl")
     facts_path = os.path.join(run_dir, "facts.jsonl")
@@ -1025,6 +1045,7 @@ def main() -> int:
             baseline_answer = (
                 selective_baseline_answer if selective_enabled else legacy_baseline_answer
             )
+            fallback_template_answer = baseline_answer
 
             pre_gate_decision: Dict[str, Any] = {"needs_calc": True, "skip_reason": None}
             needs_calc = True
@@ -1394,10 +1415,13 @@ def main() -> int:
                         selective_skip_stage_counts["post_gate"] += 1
                         selective_skip_detail_counts[calc_skip_detail] += 1
                         used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
-                        pred_answer = baseline_answer
+                        pred_answer = render_fallback_answer(
+                            fallback_template_answer,
+                            configured_fallback_mode,
+                        )
                         fallback_reason = calc_skip_detail
                         fallback_counts[fallback_reason] += 1
-                        fallback_mode = "template"
+                        fallback_mode = configured_fallback_mode
                 else:
                     if calc_skip_reason is None:
                         calc_skip_reason = "compute_fail"
@@ -1405,10 +1429,13 @@ def main() -> int:
                     if calc_skip_detail is None:
                         calc_skip_detail = "status_unknown"
                     used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
-                    pred_answer = baseline_answer
+                    pred_answer = render_fallback_answer(
+                        fallback_template_answer,
+                        configured_fallback_mode,
+                    )
                     fallback_reason = calc_skip_detail
                     fallback_counts[fallback_reason] += 1
-                    fallback_mode = "template"
+                    fallback_mode = configured_fallback_mode
             else:
                 gate_cfg = get_path(resolved, "calculator.gate", {}) or {}
                 allow_tasks = gate_cfg.get("allow_task_types", ["yoy", "diff"])
@@ -1445,10 +1472,13 @@ def main() -> int:
                     fallback_mode = "none"
                 else:
                     used_chunks = [c.get("chunk_id") for c in chunks if c.get("chunk_id")]
-                    pred_answer = placeholder_generate(query, chunks)
+                    pred_answer = render_fallback_answer(
+                        fallback_template_answer,
+                        configured_fallback_mode,
+                    )
                     fallback_reason = gate_reason or result.status
                     fallback_counts[fallback_reason] += 1
-                    fallback_mode = "template"
+                    fallback_mode = configured_fallback_mode
 
             preds_f.write(
                 json.dumps(
@@ -1564,6 +1594,7 @@ def main() -> int:
         "combo": {
             "enabled": combo_enabled,
             "use_b": combo_use_b,
+            "configured_fallback_mode": configured_fallback_mode,
             "used_module_counts": dict(used_module_counts),
             "route_reason_counts": dict(route_reason_counts),
             "fallback_mode_counts": dict(fallback_mode_counts),
@@ -1632,6 +1663,9 @@ def main() -> int:
             "needs_calc_count": selective_needs_calc_count,
             "calculator_used_count": selective_calculator_used_count,
             "lookup_enabled": enable_lookup,
+        },
+        "fallback_settings": {
+            "mode": configured_fallback_mode,
         },
         "results_path": results_path,
         "traces_path": traces_path,
