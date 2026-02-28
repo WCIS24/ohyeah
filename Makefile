@@ -2,7 +2,7 @@ PYTHON ?= python
 
 .PHONY: setup smoke test figures figures_all
 .PHONY: mine_negs train_retriever eval_retriever_pre eval_retriever_post build_subsets run_multistep eval_multistep
-.PHONY: build_numeric_subset extract_facts run_calculator run_baseline_calc run_multistep_calc eval_numeric
+.PHONY: build_numeric_subset build_calc_needed_subset extract_facts run_calculator run_baseline_calc run_multistep_calc eval_numeric
 .PHONY: validate_config sweep_multistep sweep_calc_threshold run_matrix_step6 make_tables
 
 setup:
@@ -37,6 +37,9 @@ eval_multistep:
 
 build_numeric_subset:
 	$(PYTHON) scripts/build_numeric_subset.py --config configs/build_numeric_subset.yaml
+
+build_calc_needed_subset:
+	$(PYTHON) scripts/build_calc_needed_subset.py --config configs/build_calc_needed_subset.yaml
 
 extract_facts:
 	$(PYTHON) scripts/extract_facts.py --config configs/extract_facts.yaml

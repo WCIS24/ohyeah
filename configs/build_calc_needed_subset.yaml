@@ -1,0 +1,16 @@
+output_dir: outputs
+processed_dev_path: data/processed/dev.jsonl
+subsets_dir: data/subsets
+seed: 42
+
+calc:
+  parser_mode: v2
+  min_conf: 0.45
+  subset_filename: dev_calc_needed_qids.txt
+
+value:
+  parser_mode: v2
+  lookup_min_conf: 0.45
+  include_lookup: true
+  use_numeric_intent_fallback: true
+  subset_filename: dev_value_needed_qids.txt
