@@ -1,0 +1,211 @@
+experiments:
+  - label: comboC_m01_baseline_b_legacy
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=false
+      - calculator.value.enabled=false
+      - calculator.fact_filter.enabled=false
+      - calculator.combo.route_policy=legacy_b_only
+      - calculator.value.min_score=0.60
+      - calculator.fact_filter.max_facts_per_group=0
+      - calculator.fallback.mode=template
+
+  - label: comboC_m02_a_only_template
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=false
+      - calculator.combo.route_policy=a_only
+      - calculator.combo.tau_a=0.60
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.60
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=false
+      - calculator.fact_filter.max_facts_per_group=0
+      - calculator.fallback.mode=template
+
+  - label: comboC_m03_b_only_combo
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=true
+      - calculator.combo.route_policy=b_only
+      - calculator.value.enabled=false
+      - calculator.value.min_score=0.60
+      - calculator.fact_filter.enabled=false
+      - calculator.fact_filter.max_facts_per_group=0
+      - calculator.fallback.mode=template
+
+  - label: comboC_m04_c_full_template
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=true
+      - calculator.combo.route_policy=a_then_b
+      - calculator.combo.tau_a=0.60
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.60
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=true
+      - calculator.fact_filter.max_facts_per_group=4
+      - calculator.fallback.mode=template
+
+  - label: comboC_m05_c_full_mask
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=true
+      - calculator.combo.route_policy=a_then_b
+      - calculator.combo.tau_a=0.60
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.60
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=true
+      - calculator.fact_filter.max_facts_per_group=4
+      - calculator.fallback.mode=mask_numbers
+
+  - label: comboC_m06_c_soft_a
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=true
+      - calculator.combo.route_policy=a_then_b
+      - calculator.combo.tau_a=0.40
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.40
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=true
+      - calculator.fact_filter.max_facts_per_group=4
+      - calculator.fallback.mode=template
+
+  - label: comboC_m07_c_filter_tight
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=true
+      - calculator.combo.route_policy=a_then_b
+      - calculator.combo.tau_a=0.60
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.60
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=true
+      - calculator.fact_filter.max_facts_per_group=2
+      - calculator.fallback.mode=template
+
+  - label: comboC_m08_a_only_no_number
+    tag: comboC
+    overrides:
+      - retriever.dense.model_name_or_path=models/retriever_ft/20260203_005729_cd195e
+      - retriever.mode=dense
+      - multistep.enabled=false
+      - eval.skip_retrieval=true
+      - calculator.enabled=true
+      - calculator.gate.min_conf=0.4
+      - 'calculator.gate.allow_task_types=["yoy","diff"]'
+      - qexpand.enabled=true
+      - qexpand.max_queries=3
+      - qexpand.boost=0.15
+      - qexpand.seed_top_k=5
+      - qexpand.abbrev.enabled=true
+      - qexpand.prf_year.enabled=true
+      - calculator.combo.enabled=true
+      - calculator.combo.use_b=false
+      - calculator.combo.route_policy=a_only
+      - calculator.combo.tau_a=0.60
+      - calculator.value.enabled=true
+      - calculator.value.min_score=0.60
+      - calculator.value.min_confidence=0.0
+      - calculator.fact_filter.enabled=true
+      - calculator.fact_filter.max_facts_per_group=4
+      - calculator.fallback.mode=no_number
