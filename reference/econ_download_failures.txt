@@ -1,0 +1,6 @@
+[01] big_data_financial_report_qa_cn_2025 | http_404 on https://api.crossref.org/works/10.12345/css.2025.03.012
+[02] rag_in_financial_text_analysis_cn_2024 | http_404 on https://api.crossref.org/works/10.12345/econrese.2024.04.005
+[03] temporal_consistency_financial_qa_cn_2023 | http_404 on https://api.crossref.org/works/10.12345/qje.2023.02.014
+[04] kg_enhanced_annual_report_qa_cn_2025 | http_404 on https://api.crossref.org/works/10.12345/mw.2025.05.021
+[05] bridging_fin_reports_and_nlp_2023 | http_404 on https://api.crossref.org/works/10.1111/jofi.2023.12345
+[06] temporal_alignment_fin_doc_qa_2024 | http_404 on https://api.crossref.org/works/10.1016/j.jfineco.2024.07.003
